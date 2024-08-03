@@ -65,7 +65,8 @@ void draw_box_outline(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     addch(ACS_LRCORNER);
 }
 
-int find_word_start(char* input, uint32_t cursor, uint32_t input_len) {
+int find_word_start(bool full_word, char* input, uint32_t cursor,
+                    uint32_t input_len) {
     // Empty line
     if (input_len < 1) {
         return 0;
@@ -101,7 +102,8 @@ int find_word_start(char* input, uint32_t cursor, uint32_t input_len) {
         }
         // First punctuation after word
         // OR first word after punctuation
-        if (isalnum(input[cursor]) != alnum) {
+        // (If distinguishing words and punctuation)
+        if (!full_word && isalnum(input[cursor]) != alnum) {
             return cursor;
         }
     }
@@ -110,7 +112,8 @@ int find_word_start(char* input, uint32_t cursor, uint32_t input_len) {
     return input_len - 1;
 }
 
-int find_word_end(char* input, uint32_t cursor, uint32_t input_len) {
+int find_word_end(bool full_word, char* input, uint32_t cursor,
+                  uint32_t input_len) {
     // Empty line
     if (input_len < 1) {
         return 0;
@@ -132,7 +135,9 @@ int find_word_end(char* input, uint32_t cursor, uint32_t input_len) {
         // Word ends at previous index
         // OR first punctuation after word
         // OR first word after punctuation
-        if (isspace(input[cursor]) || isalnum(input[cursor]) != alnum) {
+        // (If distinguishing words and punctuation)
+        if (isspace(input[cursor]) ||
+            (!full_word && isalnum(input[cursor]) != alnum)) {
             return cursor - 1;
         }
     }
@@ -141,7 +146,7 @@ int find_word_end(char* input, uint32_t cursor, uint32_t input_len) {
     return input_len - 1;
 }
 
-int find_word_back(char* input, uint32_t cursor) {
+int find_word_back(bool full_word, char* input, uint32_t cursor) {
     // At start of line
     if (cursor <= 1) {
         return 0;
@@ -161,7 +166,9 @@ int find_word_back(char* input, uint32_t cursor) {
         // OR first punctuation before word
         // OR first word before punctuation
         // Word starts at next index
-        if (isspace(input[cursor]) || isalnum(input[cursor]) != alnum) {
+        // (If distinguishing words and punctuation)
+        if (isspace(input[cursor]) ||
+            (!full_word && isalnum(input[cursor]) != alnum)) {
             return cursor + 1;
         }
     }
@@ -243,13 +250,24 @@ int main() {
                         }
                         break;
                     case 'w':
-                        cursor = find_word_start(input, cursor, input_len);
+                        cursor =
+                            find_word_start(FALSE, input, cursor, input_len);
                         break;
                     case 'e':
-                        cursor = find_word_end(input, cursor, input_len);
+                        cursor = find_word_end(FALSE, input, cursor, input_len);
                         break;
                     case 'b':
-                        cursor = find_word_back(input, cursor);
+                        cursor = find_word_back(FALSE, input, cursor);
+                        break;
+                    case 'W':
+                        cursor =
+                            find_word_start(TRUE, input, cursor, input_len);
+                        break;
+                    case 'E':
+                        cursor = find_word_end(TRUE, input, cursor, input_len);
+                        break;
+                    case 'B':
+                        cursor = find_word_back(TRUE, input, cursor);
                         break;
                     case '^':
                     case '_':
