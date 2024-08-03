@@ -1,9 +1,13 @@
 #include <ctype.h>
 #include <locale.h>
 #include <ncurses.h>
-#include <string.h>
+#include <signal.h>
+#include <stdlib.h>
+
+#define CTRL(key) key - 0x60
 
 #define MAX_INPUT 20
+#define MAX_HISTORY 100
 
 enum VimMode {
     NORMAL,
@@ -11,8 +15,35 @@ enum VimMode {
     REPLACE,
 };
 
+typedef struct State {
+    // Not null-terminated
+    char input[MAX_INPUT];
+    uint32_t input_len;
+    uint32_t cursor;
+} State;
+
+typedef struct History {
+    State states[MAX_HISTORY];
+    uint32_t len;
+    uint32_t index;
+} History;
+
 const uint32_t COL = 2;
 const uint32_t ROW = 2;
+
+enum VimMode mode = NORMAL;
+
+State state = {
+    .input = {0},
+    .input_len = 0,
+    .cursor = 0,
+};
+
+History history = {
+    .states = {{{0}}},
+    .len = 0,
+    .index = 0,
+};
 
 const char* mode_name(enum VimMode mode) {
     switch (mode) {
@@ -65,37 +96,36 @@ void draw_box_outline(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
     addch(ACS_LRCORNER);
 }
 
-int find_word_start(bool full_word, char* input, uint32_t cursor,
-                    uint32_t input_len) {
+int find_word_start(bool full_word) {
     // Empty line
-    if (input_len < 1) {
+    if (state.input_len < 1) {
         return 0;
     }
     // At end of line
-    if (cursor + 1 >= input_len) {
-        return input_len - 1;
+    if (state.cursor + 1 >= state.input_len) {
+        return state.input_len - 1;
     }
     // On a space
     // Look for first non-space character
-    if (isspace(input[cursor])) {
-        while (cursor + 1 < input_len) {
-            ++cursor;
-            if (!isspace(input[cursor])) {
-                return cursor;
+    if (isspace(state.input[state.cursor])) {
+        while (state.cursor + 1 < state.input_len) {
+            ++state.cursor;
+            if (!isspace(state.input[state.cursor])) {
+                return state.cursor;
             }
         }
     }
     // On non-space
-    int alnum = isalnum(input[cursor]);
-    while (cursor < input_len) {
-        ++cursor;
+    int alnum = isalnum(state.input[state.cursor]);
+    while (state.cursor < state.input_len) {
+        ++state.cursor;
         // Space found
         // Look for first non-space character
-        if (isspace(input[cursor])) {
-            while (cursor + 1 < input_len) {
-                ++cursor;
-                if (!isspace(input[cursor])) {
-                    return cursor;
+        if (isspace(state.input[state.cursor])) {
+            while (state.cursor + 1 < state.input_len) {
+                ++state.cursor;
+                if (!isspace(state.input[state.cursor])) {
+                    return state.cursor;
                 }
             }
             break;
@@ -103,78 +133,137 @@ int find_word_start(bool full_word, char* input, uint32_t cursor,
         // First punctuation after word
         // OR first word after punctuation
         // (If distinguishing words and punctuation)
-        if (!full_word && isalnum(input[cursor]) != alnum) {
-            return cursor;
+        if (!full_word && isalnum(state.input[state.cursor]) != alnum) {
+            return state.cursor;
         }
     }
     // No next word found
     // Go to end of line
-    return input_len - 1;
+    return state.input_len - 1;
 }
 
-int find_word_end(bool full_word, char* input, uint32_t cursor,
-                  uint32_t input_len) {
+int find_word_end(bool full_word) {
     // Empty line
-    if (input_len < 1) {
+    if (state.input_len < 1) {
         return 0;
     }
     // At end of line
-    if (cursor + 1 >= input_len) {
-        return input_len - 1;
+    if (state.cursor + 1 >= state.input_len) {
+        return state.input_len - 1;
     }
     // On a sequence of spaces (>=1)
     // Look for start of next word, start from there instead
-    while (cursor + 1 < input_len && isspace(input[cursor])) {
-        ++cursor;
+    while (state.cursor + 1 < state.input_len &&
+           isspace(state.input[state.cursor])) {
+        ++state.cursor;
     }
     // On non-space
-    int alnum = isalnum(input[cursor]);
-    while (cursor < input_len) {
-        ++cursor;
+    int alnum = isalnum(state.input[state.cursor]);
+    while (state.cursor < state.input_len) {
+        ++state.cursor;
         // Space found
         // Word ends at previous index
         // OR first punctuation after word
         // OR first word after punctuation
         // (If distinguishing words and punctuation)
-        if (isspace(input[cursor]) ||
-            (!full_word && isalnum(input[cursor]) != alnum)) {
-            return cursor - 1;
+        if (isspace(state.input[state.cursor]) ||
+            (!full_word && isalnum(state.input[state.cursor]) != alnum)) {
+            return state.cursor - 1;
         }
     }
     // No next word found
     // Go to end of line
-    return input_len - 1;
+    return state.input_len - 1;
 }
 
-int find_word_back(bool full_word, char* input, uint32_t cursor) {
+int find_word_back(bool full_word) {
     // At start of line
-    if (cursor <= 1) {
+    if (state.cursor <= 1) {
         return 0;
     }
     // Start at previous character
-    --cursor;
+    --state.cursor;
     // On a sequence of spaces (>=1)
     // Look for end of previous word, start from there instead
-    while (cursor > 0 && isspace(input[cursor])) {
-        --cursor;
+    while (state.cursor > 0 && isspace(state.input[state.cursor])) {
+        --state.cursor;
     }
     // Now on a non-space
-    int alnum = isalnum(input[cursor]);
-    while (cursor > 0) {
-        cursor--;
+    int alnum = isalnum(state.input[state.cursor]);
+    while (state.cursor > 0) {
+        state.cursor--;
         // Space found
         // OR first punctuation before word
         // OR first word before punctuation
         // Word starts at next index
         // (If distinguishing words and punctuation)
-        if (isspace(input[cursor]) ||
-            (!full_word && isalnum(input[cursor]) != alnum)) {
-            return cursor + 1;
+        if (isspace(state.input[state.cursor]) ||
+            (!full_word && isalnum(state.input[state.cursor]) != alnum)) {
+            return state.cursor + 1;
         }
     }
     // No previous word found
     // Go to start of line
     return 0;
+}
+
+bool equals_state_input(const State* s1, const State* s2) {
+    if (s1->input_len != s2->input_len) {
+        return false;
+    }
+    for (uint32_t i = 0; i < s1->input_len; ++i) {
+        if (s1->input[i] != s2->input[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void copy_state(State* src, State* dest) {
+    dest->input_len = src->input_len;
+    dest->cursor = src->cursor;
+    for (uint32_t i = 0; i < src->input_len; ++i) {
+        dest->input[i] = src->input[i];
+    }
+}
+
+void push_history() {
+    // Ignore if same as last entry
+    if (history.len > 0 &&
+        equals_state_input(&state, &history.states[history.len - 1])) {
+        return;
+    }
+    // TODO: Use cyclic array
+    if (history.len >= MAX_HISTORY) {
+        for (uint32_t i = 1; i < history.len; ++i) {
+            copy_state(&history.states[i], &history.states[i - 1]);
+        }
+    } else {
+        ++history.len;
+        ++history.index;
+    }
+
+    copy_state(&state, &history.states[history.len - 1]);
+}
+
+void undo_history() {
+    if (history.len == 0 || history.index <= 1) {
+        return;
+    }
+    --history.index;
+    copy_state(&history.states[history.index], &state);
+}
+void redo_history() {
+    if (history.index + 1 >= history.len) {
+        return;
+    }
+    ++history.index;
+    copy_state(&history.states[history.index], &state);
+}
+
+void terminate() {
+    endwin();
+    exit(0);
 }
 
 int main() {
@@ -185,38 +274,38 @@ int main() {
     keypad(stdscr, TRUE);
     set_escdelay(0);
 
-    enum VimMode mode = NORMAL;
+    signal(SIGINT, terminate);
 
-    char input[MAX_INPUT] = "abc  =def==( )";
-    uint32_t input_len = strlen(input);
-    uint32_t cursor = 0;
+    push_history();
 
-    char ch;
+    int key = 0;
 
     while (TRUE) {
         draw_box_outline(ROW, COL, MAX_INPUT, 1);
         move(ROW, COL);
         for (uint32_t i = 0; i < MAX_INPUT; ++i) {
-            printw("%c", i < input_len ? input[i] : ' ');
+            printw("%c", i < state.input_len ? state.input[i] : ' ');
         }
 
         move(ROW + 3, 0);
-        printw("mode:   %s\n", mode_name(mode));
-        printw("len:    %d\n", input_len);
-        printw("cursor: %d\n", cursor);
-        printw("input:  %02x\n", ch);
+        printw("mode:    %s\n", mode_name(mode));
+        printw("len:     %d\n", state.input_len);
+        printw("cursor:  %d\n", state.cursor);
+        printw("input:   0x%02x\n", key);
+        printw("history: %d/%d\n", history.index, history.len);
 
-        draw_cursor(mode, cursor);
+        draw_cursor(mode, state.cursor);
 
         refresh();
 
-        ch = getch();
+        key = getch();
 
         switch (mode) {
             case NORMAL:
-                switch (ch) {
+                switch (key) {
                     case 'q':
-                        goto quit;
+                        terminate();
+                        break;
                     case 'r':
                         mode = REPLACE;
                         break;
@@ -225,77 +314,87 @@ int main() {
                         break;
                     case 'a':
                         mode = INSERT;
-                        if (cursor < input_len) {
-                            ++cursor;
+                        if (state.cursor < state.input_len) {
+                            ++state.cursor;
                         }
                         break;
                     case 'I':
                         mode = INSERT;
-                        cursor = 0;
+                        state.cursor = 0;
                         break;
                     case 'A':
                         mode = INSERT;
-                        cursor = input_len;
+                        state.cursor = state.input_len;
                         break;
                     case 'h':
                     case KEY_LEFT:
-                        if (cursor > 0) {
-                            --cursor;
+                        if (state.cursor > 0) {
+                            --state.cursor;
                         }
                         break;
                     case 'l':
                     case KEY_RIGHT:
-                        if (cursor < MAX_INPUT - 1 && cursor < input_len - 1) {
-                            ++cursor;
+                        if (state.cursor < MAX_INPUT - 1 &&
+                            state.cursor < state.input_len - 1) {
+                            ++state.cursor;
                         }
                         break;
                     case 'w':
-                        cursor =
-                            find_word_start(FALSE, input, cursor, input_len);
+                        state.cursor = find_word_start(FALSE);
                         break;
                     case 'e':
-                        cursor = find_word_end(FALSE, input, cursor, input_len);
+                        state.cursor = find_word_end(FALSE);
                         break;
                     case 'b':
-                        cursor = find_word_back(FALSE, input, cursor);
+                        state.cursor = find_word_back(FALSE);
                         break;
                     case 'W':
-                        cursor =
-                            find_word_start(TRUE, input, cursor, input_len);
+                        state.cursor = find_word_start(TRUE);
                         break;
                     case 'E':
-                        cursor = find_word_end(TRUE, input, cursor, input_len);
+                        state.cursor = find_word_end(TRUE);
                         break;
                     case 'B':
-                        cursor = find_word_back(TRUE, input, cursor);
+                        state.cursor = find_word_back(TRUE);
                         break;
                     case '^':
                     case '_':
-                        for (cursor = 0; cursor < input_len; ++cursor) {
-                            if (!isspace(input[cursor])) {
+                        for (state.cursor = 0; state.cursor < state.input_len;
+                             ++state.cursor) {
+                            if (!isspace(state.input[state.cursor])) {
                                 break;
                             }
                         }
                         break;
                     case '0':
-                        cursor = 0;
+                        state.cursor = 0;
                         break;
                     case '$':
-                        cursor = input_len - 1;
+                        state.cursor = state.input_len - 1;
                         break;
                     case 'D':
-                        input_len = cursor;
+                        state.input_len = state.cursor;
+                        push_history();
                         break;
                     case 'x':
-                        if (input_len > 0) {
-                            for (uint32_t i = cursor + 1; i < input_len; ++i) {
-                                input[i - 1] = input[i];
+                        if (state.input_len > 0) {
+                            for (uint32_t i = state.cursor + 1;
+                                 i < state.input_len; ++i) {
+                                state.input[i - 1] = state.input[i];
                             }
-                            --input_len;
-                            if (cursor >= input_len && input_len > 0) {
-                                cursor = input_len - 1;
+                            --state.input_len;
+                            if (state.cursor >= state.input_len &&
+                                state.input_len > 0) {
+                                state.cursor = state.input_len - 1;
                             }
+                            push_history();
                         }
+                        break;
+                    case 'u':
+                        undo_history();
+                        break;
+                    case CTRL('r'):
+                        redo_history();
                         break;
                     default:
                         break;
@@ -303,56 +402,65 @@ int main() {
                 break;
 
             case INSERT:
-                switch (ch) {
+                switch (key) {
                     case 0x1b:  // Escape
                         mode = NORMAL;
-                        if (cursor > 0) {
-                            --cursor;
+                        if (state.cursor > 0) {
+                            --state.cursor;
                         }
                         break;
                     case 0x04:  // Left arrow
-                        if (cursor > 0) {
-                            --cursor;
+                        if (state.cursor > 0) {
+                            --state.cursor;
                         }
                         break;
                     case 0x05:  // Right arrow
-                        if (cursor < MAX_INPUT && cursor < input_len) {
-                            ++cursor;
+                        if (state.cursor < MAX_INPUT &&
+                            state.cursor < state.input_len) {
+                            ++state.cursor;
                         }
                         break;
                     case 0x07:  // Backspace
-                        if (cursor > 0 && input_len > 0) {
-                            for (uint32_t i = cursor; i < input_len; ++i) {
-                                input[i - 1] = input[i];
+                        if (state.cursor > 0 && state.input_len > 0) {
+                            for (uint32_t i = state.cursor; i < state.input_len;
+                                 ++i) {
+                                state.input[i - 1] = state.input[i];
                             }
-                            --input_len;
-                            --cursor;
+                            --state.input_len;
+                            --state.cursor;
+                            push_history();
                         }
                         break;
                     default:
-                        if (isprint(ch)) {
-                            if (input_len < MAX_INPUT) {
-                                for (uint32_t i = input_len; i >= cursor + 1;
-                                     --i) {
-                                    input[i] = input[i - 1];
-                                }
-                                input[cursor] = ch;
-                                ++cursor;
-                                ++input_len;
+                        if (isprint(key) && state.input_len < MAX_INPUT) {
+                            for (uint32_t i = state.input_len;
+                                 i >= state.cursor + 1; --i) {
+                                state.input[i] = state.input[i - 1];
                             }
+                            state.input[state.cursor] = key;
+                            ++state.cursor;
+                            ++state.input_len;
+                            push_history();
                         }
                         break;
                 };
                 break;
 
             case REPLACE:
-                input[cursor] = ch;
-                mode = NORMAL;
+                switch (key) {
+                    case 0x1b:  // Escape
+                        mode = NORMAL;
+                        break;
+                    default:
+                        state.input[state.cursor] = key;
+                        mode = NORMAL;
+                        push_history();
+                        break;
+                }
                 break;
         }
     }
 
-quit:
-    endwin();
+    terminate();
     return 0;
 }
