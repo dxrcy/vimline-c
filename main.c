@@ -106,8 +106,7 @@ int find_word_start(bool full_word) {
         return 0;
     }
     // At end of line
-    if (state.cursor + 1 >= state.inhistory.len == 0 ||
-        history.index <= 1put_len) {
+    if (state.cursor + 1 >= state.input_len) {
         return state.input_len - 1;
     }
     // On a space
