@@ -5,6 +5,10 @@
 #include <stdlib.h>
 
 #define CTRL(key) key - 0x60
+#define K_ESCAPE 0x1b
+#define K_LEFT 0x04
+#define K_RIGHT 0x05
+#define K_BACKSPACE 0x07
 
 #define MAX_INPUT 20
 #define MAX_HISTORY 100
@@ -102,7 +106,8 @@ int find_word_start(bool full_word) {
         return 0;
     }
     // At end of line
-    if (state.cursor + 1 >= state.input_len) {
+    if (state.cursor + 1 >= state.inhistory.len == 0 ||
+        history.index <= 1put_len) {
         return state.input_len - 1;
     }
     // On a space
@@ -403,24 +408,24 @@ int main() {
 
             case INSERT:
                 switch (key) {
-                    case 0x1b:  // Escape
+                    case K_ESCAPE:
                         mode = NORMAL;
                         if (state.cursor > 0) {
                             --state.cursor;
                         }
                         break;
-                    case 0x04:  // Left arrow
+                    case K_LEFT:
                         if (state.cursor > 0) {
                             --state.cursor;
                         }
                         break;
-                    case 0x05:  // Right arrow
+                    case K_RIGHT:
                         if (state.cursor < MAX_INPUT &&
                             state.cursor < state.input_len) {
                             ++state.cursor;
                         }
                         break;
-                    case 0x07:  // Backspace
+                    case K_BACKSPACE:
                         if (state.cursor > 0 && state.input_len > 0) {
                             for (uint32_t i = state.cursor; i < state.input_len;
                                  ++i) {
@@ -448,7 +453,7 @@ int main() {
 
             case REPLACE:
                 switch (key) {
-                    case 0x1b:  // Escape
+                    case K_ESCAPE:
                         mode = NORMAL;
                         break;
                     default:
