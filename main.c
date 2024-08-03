@@ -226,12 +226,19 @@ bool equals_state_input(const State* s1, const State* s2) {
 void copy_state(State* src, State* dest) {
     dest->input_len = src->input_len;
     dest->cursor = src->cursor;
+    if (dest->cursor > dest->input_len) {
+        dest->cursor = dest->input_len == 0 ? 0 : dest->input_len - 1;
+    }
     for (uint32_t i = 0; i < src->input_len; ++i) {
         dest->input[i] = src->input[i];
     }
 }
 
 void push_history() {
+    // Delete all future history to be overwritten
+    if (history.index <= history.len) {
+        history.len = history.index;
+    }
     // Ignore if same as last entry
     if (history.len > 0 &&
         equals_state_input(&state, &history.states[history.len - 1])) {
@@ -251,7 +258,7 @@ void push_history() {
 }
 
 void undo_history() {
-    if (history.len == 0 || history.index <= 1) {
+    if (history.len == 0 || history.index == 0) {
         return;
     }
     --history.index;
@@ -272,13 +279,12 @@ void terminate() {
 
 int main() {
     initscr();
-    noecho();
-    cbreak();
-    setlocale(LC_ALL, "");
-    keypad(stdscr, TRUE);
-    set_escdelay(0);
+    noecho();              // Disable echoing
+    cbreak();              // Disable line buffering
+    keypad(stdscr, TRUE);  // Enable raw key input
+    set_escdelay(0);       // Disable Escape key delay
 
-    signal(SIGINT, terminate);
+    signal(SIGINT, terminate);  // Clean up on SIGINT
 
     push_history();
 
@@ -412,6 +418,7 @@ int main() {
                         if (state.cursor > 0) {
                             --state.cursor;
                         }
+                        push_history();
                         break;
                     case K_LEFT:
                         if (state.cursor > 0) {
@@ -432,7 +439,6 @@ int main() {
                             }
                             --state.input_len;
                             --state.cursor;
-                            push_history();
                         }
                         break;
                     default:
@@ -444,7 +450,6 @@ int main() {
                             state.input[state.cursor] = key;
                             ++state.cursor;
                             ++state.input_len;
-                            push_history();
                         }
                         break;
                 };
