@@ -6,9 +6,9 @@
 
 #define CTRL(key) key - 0x60
 #define K_ESCAPE 0x1b
-#define K_LEFT 0x04
-#define K_RIGHT 0x05
-#define K_BACKSPACE 0x07
+#define K_LEFT 0x104
+#define K_RIGHT 0x105
+#define K_BACKSPACE 0x107
 
 #define MAX_INPUT 20
 #define MAX_HISTORY 100
