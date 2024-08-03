@@ -1,5 +1,4 @@
 #include <ctype.h>
-#include <locale.h>
 #include <ncurses.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -254,11 +253,11 @@ void push_history() {
         ++history.index;
     }
 
-    copy_state(&state, &history.states[history.len - 1]);
+    copy_state(&state, &history.states[history.index - 1]);
 }
 
 void undo_history() {
-    if (history.len == 0 || history.index == 0) {
+    if (history.len == 0 || history.index <= 0) {
         return;
     }
     --history.index;
