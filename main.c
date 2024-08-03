@@ -271,8 +271,13 @@ int main() {
                         break;
                     case '^':
                     case '_':
+                        for (cursor = 0; cursor < input_len; ++cursor) {
+                            if (!isspace(input[cursor])) {
+                                break;
+                            }
+                        }
+                        break;
                     case '0':
-                        // TODO: Move to start of input, not 0
                         cursor = 0;
                         break;
                     case '$':
