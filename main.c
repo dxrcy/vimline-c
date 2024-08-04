@@ -11,7 +11,7 @@
 #define K_BACKSPACE 0x107
 #define K_RETURN 0x0a
 
-#define MAX_INPUT 50
+#define MAX_INPUT 200
 #define MAX_HISTORY 100
 
 enum VimMode {
@@ -28,16 +28,18 @@ typedef struct State {
     uint32_t offset;
 } State;
 
+// TODO: Use cyclic array or heap allocate
 typedef struct History {
     State states[MAX_HISTORY];
     uint32_t len;
     uint32_t index;
 } History;
 
-const uint32_t COL = 2;
-const uint32_t ROW = 2;
-
 enum VimMode mode = INSERT;
+
+uint32_t input_width = 20;
+uint32_t box_y = 0;
+uint32_t box_x = 0;
 
 State state = {
     .input = "",
@@ -51,6 +53,12 @@ History history = {
     .len = 0,
     .index = 0,
 };
+
+// TODO: Use macros
+const uint32_t cursor_left = 5;
+const uint32_t cursor_right = 1;
+const uint32_t max_input_width = 70;
+const uint32_t box_margin = 2;
 
 uint32_t subsat(uint32_t lhs, uint32_t rhs) {
     if (rhs >= lhs) {
@@ -78,8 +86,7 @@ const char* mode_name(enum VimMode mode) {
     }
 }
 
-void draw_cursor(enum VimMode mode, uint32_t cursor) {
-    int32_t offset = 0;
+void set_cursor(enum VimMode mode) {
     switch (mode) {
         case INSERT:
             printf("\033[5 q");
@@ -89,29 +96,28 @@ void draw_cursor(enum VimMode mode, uint32_t cursor) {
             break;
     }
     fflush(stdout);
-    move(ROW, COL + cursor + offset);
 }
 
 void draw_box_outline(uint32_t x, uint32_t y, uint32_t w, bool left_open,
                       bool right_open) {
     // Top
-    move(y - 1, x - 1);
+    move(y, x);
     addch(ACS_ULCORNER);
-    for (uint32_t i = 0; i < w; ++i) {
+    for (uint32_t i = 0; i < w - 2; ++i) {
         addch(ACS_HLINE);
     }
     addch(ACS_URCORNER);
 
     // Sides
-    move(y, x - 1);
+    move(y + 1, x);
     addch(left_open ? ':' : ACS_VLINE);
-    move(y, x + w);
+    move(y + 1, x + w - 1);
     addch(right_open ? ':' : ACS_VLINE);
 
     // Bottom
-    move(y + 1, x - 1);
+    move(y + 2, x);
     addch(ACS_LLCORNER);
-    for (uint32_t i = 0; i < w; ++i) {
+    for (uint32_t i = 0; i < w - 2; ++i) {
         addch(ACS_HLINE);
     }
     addch(ACS_LRCORNER);
@@ -252,7 +258,6 @@ void push_history() {
         equals_state_input(&state, &history.states[history.len - 1])) {
         return;
     }
-    // TODO: Use cyclic array
     if (history.len >= MAX_HISTORY) {
         for (uint32_t i = 1; i < history.len; ++i) {
             copy_state(&history.states[i], &history.states[i - 1]);
@@ -292,11 +297,6 @@ void terminate() {
     exit(0);
 }
 
-// TODO: Move these somewhere else
-const uint32_t input_width = 20;
-const uint32_t cursor_left = 5;
-const uint32_t cursor_right = 1;
-
 void update_offset_left() {
     if (state.cursor < state.offset + cursor_left) {
         state.offset = subsat(state.cursor, cursor_left);
@@ -322,10 +322,19 @@ int main() {
     int key = 0;
 
     while (TRUE) {
-        draw_box_outline(ROW, COL, input_width, state.offset > 0,
+        clear();
+
+        int max_rows = getmaxy(stdscr);
+        int max_cols = getmaxx(stdscr);
+
+        input_width = min(max_cols - box_margin * 2 - 2, max_input_width);
+        box_x = (max_cols - input_width) / 2 - 1;
+        box_y = 1;
+
+        draw_box_outline(box_x, box_y, input_width + 2, state.offset > 0,
                          state.offset + input_width < state.input_len);
 
-        move(ROW, COL);
+        move(box_y + 1, box_x + 1);
         for (uint32_t i = 0; i < input_width; ++i) {
             if (i + state.offset < state.input_len) {
                 printw("%c", state.input[i + state.offset]);
@@ -334,15 +343,14 @@ int main() {
             }
         }
 
-        int max_rows = getmaxy(stdscr);
-
         move(max_rows - 1, 0);
         printw("%8s", mode_name(mode));
         printw(" [%3d /%3d]", state.cursor, state.input_len);
         printw(" [%3d /%3d]", history.index, history.len);
         printw(" 0x%02x", key);
 
-        draw_cursor(mode, subsat(state.cursor, state.offset));
+        set_cursor(mode);
+        move(box_y + 1, box_x + subsat(state.cursor, state.offset) + 1);
 
         refresh();
 
@@ -538,8 +546,6 @@ int main() {
                 }
                 break;
         }
-
-        /* state.offset = subsat(state.cursor, input_width); */
     }
 
     terminate();
