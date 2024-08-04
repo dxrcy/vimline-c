@@ -595,7 +595,9 @@ int main() {
                 }
                 break;
 
-            case VISUAL:
+            case VISUAL: {
+                uint32_t start = min(state.cursor, visual_start);
+                uint32_t size = difference(state.cursor, visual_start) + 1;
                 switch (key) {
                     case K_ESCAPE:
                         mode = NORMAL;
@@ -659,9 +661,6 @@ int main() {
                         break;
                     case 'd':
                     case 'x': {
-                        uint32_t start = min(state.cursor, visual_start);
-                        uint32_t size =
-                            difference(state.cursor, visual_start) + 1;
                         for (uint32_t i = start; i <= state.input_len - size;
                              ++i) {
                             uint32_t new = i + size;
@@ -680,10 +679,32 @@ int main() {
                         mode = NORMAL;
                         push_history();
                     } break;
+                    case 'u': {
+                        for (uint32_t i = 0; i < size; ++i) {
+                            state.input[start + i] =
+                                tolower(state.input[start + i]);
+                        }
+                        if (state.cursor > visual_start) {
+                            state.cursor -= size - 1;
+                        }
+                        mode = NORMAL;
+                        push_history();
+                    }; break;
+                    case 'U': {
+                        for (uint32_t i = 0; i < size; ++i) {
+                            state.input[start + i] =
+                                toupper(state.input[start + i]);
+                        }
+                        if (state.cursor > visual_start) {
+                            state.cursor -= size - 1;
+                        }
+                        mode = NORMAL;
+                        push_history();
+                    }; break;
                     default:
                         break;
                 }
-                break;
+            } break;
         }
     }
 
