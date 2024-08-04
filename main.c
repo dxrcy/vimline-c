@@ -8,8 +8,9 @@
 #define K_LEFT 0x104
 #define K_RIGHT 0x105
 #define K_BACKSPACE 0x107
+#define K_RETURN 0x0a
 
-#define MAX_INPUT 20
+#define MAX_INPUT 50
 #define MAX_HISTORY 100
 
 enum VimMode {
@@ -23,6 +24,7 @@ typedef struct State {
     char input[MAX_INPUT];
     uint32_t input_len;
     uint32_t cursor;
+    uint32_t offset;
 } State;
 
 typedef struct History {
@@ -34,12 +36,13 @@ typedef struct History {
 const uint32_t COL = 2;
 const uint32_t ROW = 2;
 
-enum VimMode mode = NORMAL;
+enum VimMode mode = INSERT;
 
 State state = {
-    .input = {0},
-    .input_len = 0,
-    .cursor = 0,
+    .input = "abcdefghijklmnopqrstuvwxy",
+    .input_len = 25,
+    .cursor = 25,
+    .offset = 5,
 };
 
 History history = {
@@ -47,6 +50,19 @@ History history = {
     .len = 0,
     .index = 0,
 };
+
+uint32_t subsat(uint32_t lhs, uint32_t rhs) {
+    if (rhs >= lhs) {
+        return 0;
+    }
+    return lhs - rhs;
+}
+uint32_t min(uint32_t lhs, uint32_t rhs) {
+    if (rhs >= lhs) {
+        return lhs;
+    }
+    return rhs;
+}
 
 const char* mode_name(enum VimMode mode) {
     switch (mode) {
@@ -75,7 +91,8 @@ void draw_cursor(enum VimMode mode, uint32_t cursor) {
     move(ROW, COL + cursor + offset);
 }
 
-void draw_box_outline(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+void draw_box_outline(uint32_t x, uint32_t y, uint32_t w, bool left_open,
+                      bool right_open) {
     // Top
     move(y - 1, x - 1);
     addch(ACS_ULCORNER);
@@ -83,15 +100,15 @@ void draw_box_outline(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
         addch(ACS_HLINE);
     }
     addch(ACS_URCORNER);
+
     // Sides
-    for (uint32_t i = 0; i < h; ++i) {
-        move(y + i, x - 1);
-        addch(ACS_VLINE);
-        move(y + i, x + w);
-        addch(ACS_VLINE);
-    }
+    move(y, x - 1);
+    addch(left_open ? ':' : ACS_VLINE);
+    move(y, x + w);
+    addch(right_open ? ':' : ACS_VLINE);
+
     // Bottom
-    move(y + h, x - 1);
+    move(y + 1, x - 1);
     addch(ACS_LLCORNER);
     for (uint32_t i = 0; i < w; ++i) {
         addch(ACS_HLINE);
@@ -224,10 +241,8 @@ bool equals_state_input(const State* s1, const State* s2) {
 
 void copy_state(State* src, State* dest) {
     dest->input_len = src->input_len;
-    dest->cursor = src->cursor;
-    if (dest->cursor > dest->input_len) {
-        dest->cursor = dest->input_len == 0 ? 0 : dest->input_len - 1;
-    }
+    dest->cursor = min(src->cursor, subsat(dest->input_len, 1));
+    dest->offset = min(src->offset, subsat(dest->input_len, 1));
     for (uint32_t i = 0; i < src->input_len; ++i) {
         dest->input[i] = src->input[i];
     }
@@ -271,9 +286,32 @@ void redo_history() {
     copy_state(&history.states[history.index], &state);
 }
 
+void print_input() {
+    for (int i = 0; i < state.input_len; ++i) {
+        printf("%c", state.input[i]);
+    }
+    printf("\n");
+}
+
 void terminate() {
     endwin();
     exit(0);
+}
+
+// TODO: Move these somewhere else
+const uint32_t input_width = 20;
+const uint32_t cursor_left = 5;
+const uint32_t cursor_right = 1;
+
+void update_offset_left() {
+    if (state.cursor < state.offset + cursor_left) {
+        state.offset = subsat(state.cursor, cursor_left);
+    }
+}
+void update_offset_right() {
+    if (state.cursor + cursor_right > input_width) {
+        state.offset = subsat(state.cursor + cursor_right, input_width);
+    }
 }
 
 int main() {
@@ -290,20 +328,28 @@ int main() {
     int key = 0;
 
     while (TRUE) {
-        draw_box_outline(ROW, COL, MAX_INPUT, 1);
+        draw_box_outline(ROW, COL, input_width, state.offset > 0,
+                         state.offset + input_width < state.input_len);
+
         move(ROW, COL);
-        for (uint32_t i = 0; i < MAX_INPUT; ++i) {
-            printw("%c", i < state.input_len ? state.input[i] : ' ');
+        for (uint32_t i = 0; i < input_width; ++i) {
+            if (i + state.offset < state.input_len) {
+                printw("%c", state.input[i + state.offset]);
+            } else {
+                printw(" ");
+            }
         }
 
-        move(ROW + 3, 0);
-        printw("mode:    %s\n", mode_name(mode));
-        printw("len:     %d\n", state.input_len);
-        printw("cursor:  %d\n", state.cursor);
-        printw("input:   0x%02x\n", key);
-        printw("history: %d/%d\n", history.index, history.len);
+        int max_rows, max_cols;
+        getmaxyx(stdscr, max_rows, max_cols);
 
-        draw_cursor(mode, state.cursor);
+        move(max_rows - 1, 0);
+        printw("%8s", mode_name(mode));
+        printw(" [%3d /%3d]", state.cursor, state.input_len);
+        printw(" [%3d /%3d]", history.index, history.len);
+        printw(" 0x%02x", key);
+
+        draw_cursor(mode, subsat(state.cursor, state.offset));
 
         refresh();
 
@@ -313,6 +359,10 @@ int main() {
             case NORMAL:
                 switch (key) {
                     case 'q':
+                        terminate();
+                        break;
+                    case K_RETURN:
+                        print_input();
                         terminate();
                         break;
                     case 'r':
@@ -330,15 +380,18 @@ int main() {
                     case 'I':
                         mode = INSERT;
                         state.cursor = 0;
+                        state.offset = 0;
                         break;
                     case 'A':
                         mode = INSERT;
                         state.cursor = state.input_len;
+                        state.offset = subsat(state.cursor + 1, input_width);
                         break;
                     case 'h':
                     case KEY_LEFT:
                         if (state.cursor > 0) {
                             --state.cursor;
+                            update_offset_left();
                         }
                         break;
                     case 'l':
@@ -346,25 +399,32 @@ int main() {
                         if (state.cursor < MAX_INPUT - 1 &&
                             state.cursor < state.input_len - 1) {
                             ++state.cursor;
+                            update_offset_right();
                         }
                         break;
                     case 'w':
                         state.cursor = find_word_start(FALSE);
+                        update_offset_right();
                         break;
                     case 'e':
                         state.cursor = find_word_end(FALSE);
+                        update_offset_right();
                         break;
                     case 'b':
                         state.cursor = find_word_back(FALSE);
+                        update_offset_left();
                         break;
                     case 'W':
                         state.cursor = find_word_start(TRUE);
+                        update_offset_right();
                         break;
                     case 'E':
                         state.cursor = find_word_end(TRUE);
+                        update_offset_right();
                         break;
                     case 'B':
                         state.cursor = find_word_back(TRUE);
+                        update_offset_left();
                         break;
                     case '^':
                     case '_':
@@ -374,12 +434,15 @@ int main() {
                                 break;
                             }
                         }
+                        update_offset_left();
                         break;
                     case '0':
                         state.cursor = 0;
+                        state.offset = 0;
                         break;
                     case '$':
                         state.cursor = state.input_len - 1;
+                        state.offset = subsat(state.cursor + 2, input_width);
                         break;
                     case 'D':
                         state.input_len = state.cursor;
@@ -396,6 +459,7 @@ int main() {
                                 state.input_len > 0) {
                                 state.cursor = state.input_len - 1;
                             }
+                            update_offset_left();
                             push_history();
                         }
                         break;
@@ -419,15 +483,21 @@ int main() {
                         }
                         push_history();
                         break;
+                    case K_RETURN:
+                        print_input();
+                        terminate();
+                        break;
                     case K_LEFT:
                         if (state.cursor > 0) {
                             --state.cursor;
+                            update_offset_left();
                         }
                         break;
                     case K_RIGHT:
                         if (state.cursor < MAX_INPUT &&
                             state.cursor < state.input_len) {
                             ++state.cursor;
+                            update_offset_right();
                         }
                         break;
                     case K_BACKSPACE:
@@ -436,8 +506,13 @@ int main() {
                                  ++i) {
                                 state.input[i - 1] = state.input[i];
                             }
+                            for (uint32_t i = state.input_len; i < MAX_INPUT;
+                                 ++i) {
+                                state.input[i] = '.';
+                            }
                             --state.input_len;
                             --state.cursor;
+                            update_offset_left();
                         }
                         break;
                     default:
@@ -449,6 +524,7 @@ int main() {
                             state.input[state.cursor] = key;
                             ++state.cursor;
                             ++state.input_len;
+                            update_offset_right();
                         }
                         break;
                 };
@@ -460,13 +536,17 @@ int main() {
                         mode = NORMAL;
                         break;
                     default:
-                        state.input[state.cursor] = key;
-                        mode = NORMAL;
-                        push_history();
+                        if (isprint(key)) {
+                            state.input[state.cursor] = key;
+                            mode = NORMAL;
+                            push_history();
+                        }
                         break;
                 }
                 break;
         }
+
+        /* state.offset = subsat(state.cursor, input_width); */
     }
 
     terminate();
