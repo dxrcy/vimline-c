@@ -396,7 +396,7 @@ int main() {
             case NORMAL:
                 switch (key) {
                     case 'q':
-                    case K_ESCAPE:
+                        /* case K_ESCAPE: */
                         endwin();
                         exit(0);
                         break;
