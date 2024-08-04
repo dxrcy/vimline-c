@@ -373,11 +373,13 @@ int main() {
                 switch (key) {
                     case 'q':
                     case K_ESCAPE:
-                        terminate();
+                        endwin();
+                        exit(0);
                         break;
                     case K_RETURN:
+                        endwin();
                         print_input();
-                        terminate();
+                        exit(0);
                         break;
                     case 'r':
                         mode = REPLACE;
@@ -498,8 +500,9 @@ int main() {
                         push_history();
                         break;
                     case K_RETURN:
+                        endwin();
                         print_input();
-                        terminate();
+                        exit(0);
                         break;
                     case K_LEFT:
                         if (state.cursor > 0) {
@@ -561,6 +564,6 @@ int main() {
         }
     }
 
-    terminate();
+    endwin();
     return 0;
 }
