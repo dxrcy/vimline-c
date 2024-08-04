@@ -2,6 +2,7 @@
 #include <ncurses.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define CTRL(key) key - 0x60
 #define K_ESCAPE 0x1b
@@ -39,10 +40,10 @@ const uint32_t ROW = 2;
 enum VimMode mode = INSERT;
 
 State state = {
-    .input = "abcdefghijklmnopqrstuvwxy",
-    .input_len = 25,
-    .cursor = 25,
-    .offset = 5,
+    .input = "",
+    .input_len = 0,
+    .cursor = 0,
+    .offset = 0,
 };
 
 History history = {
@@ -239,14 +240,7 @@ bool equals_state_input(const State* s1, const State* s2) {
     return true;
 }
 
-void copy_state(State* src, State* dest) {
-    dest->input_len = src->input_len;
-    dest->cursor = min(src->cursor, subsat(dest->input_len, 1));
-    dest->offset = min(src->offset, subsat(dest->input_len, 1));
-    for (uint32_t i = 0; i < src->input_len; ++i) {
-        dest->input[i] = src->input[i];
-    }
-}
+void copy_state(State* src, State* dest) { memcpy(dest, src, sizeof(State)); }
 
 void push_history() {
     // Delete all future history to be overwritten
@@ -287,7 +281,7 @@ void redo_history() {
 }
 
 void print_input() {
-    for (int i = 0; i < state.input_len; ++i) {
+    for (uint32_t i = 0; i < state.input_len; ++i) {
         printf("%c", state.input[i]);
     }
     printf("\n");
@@ -340,8 +334,7 @@ int main() {
             }
         }
 
-        int max_rows, max_cols;
-        getmaxyx(stdscr, max_rows, max_cols);
+        int max_rows = getmaxy(stdscr);
 
         move(max_rows - 1, 0);
         printw("%8s", mode_name(mode));
