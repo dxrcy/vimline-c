@@ -18,6 +18,7 @@ enum VimMode {
     NORMAL,
     INSERT,
     REPLACE,
+    VISUAL,
 };
 
 typedef struct State {
@@ -35,15 +36,16 @@ typedef struct History {
     uint32_t index;
 } History;
 
-enum VimMode mode = INSERT;
-
 uint32_t input_width = 20;
 uint32_t box_y = 0;
 uint32_t box_x = 0;
 
+enum VimMode mode = NORMAL;
+uint32_t visual_start = 0;
+
 State state = {
-    .input = "",
-    .input_len = 0,
+    .input = "abc def ghi jkl",
+    .input_len = 15,
     .cursor = 0,
     .offset = 0,
 };
@@ -72,6 +74,12 @@ uint32_t min(uint32_t lhs, uint32_t rhs) {
     }
     return rhs;
 }
+uint32_t difference(uint32_t lhs, uint32_t rhs) {
+    if (lhs >= rhs) {
+        return lhs - rhs;
+    }
+    return rhs - lhs;
+}
 
 const char* mode_name(enum VimMode mode) {
     switch (mode) {
@@ -81,19 +89,18 @@ const char* mode_name(enum VimMode mode) {
             return "INSERT";
         case REPLACE:
             return "REPLACE";
+        case VISUAL:
+            return "VISUAL";
         default:
             return "?";
     }
 }
 
 void set_cursor(enum VimMode mode) {
-    switch (mode) {
-        case INSERT:
-            printf("\033[5 q");
-            break;
-        default:
-            printf("\033[1 q");
-            break;
+    if (mode == INSERT) {
+        printf("\033[5 q");
+    } else {
+        printf("\033[1 q");
     }
     fflush(stdout);
 }
@@ -144,7 +151,7 @@ int find_word_start(bool full_word) {
     }
     // On non-space
     int alnum = isalnum(state.input[state.cursor]);
-    while (state.cursor < state.input_len) {
+    while (state.cursor < state.input_len - 1) {
         ++state.cursor;
         // Space found
         // Look for first non-space character
@@ -308,6 +315,16 @@ void update_offset_right() {
     }
 }
 
+bool in_visual_select(uint32_t index) {
+    if (state.cursor == visual_start) {
+        return index == visual_start;
+    }
+    if (state.cursor < visual_start) {
+        return index >= state.cursor && index <= visual_start;
+    }
+    return index >= visual_start && index <= state.cursor;
+}
+
 int main() {
     initscr();
     noecho();              // Disable echoing
@@ -322,8 +339,10 @@ int main() {
 
     init_pair(1, COLOR_BLUE, -1);
     init_pair(2, COLOR_WHITE, -1);
+    init_pair(3, -1, COLOR_BLUE);
     const int attr_box = COLOR_PAIR(1) | A_DIM;
     const int attr_details = COLOR_PAIR(2) | A_DIM;
+    const int attr_visual = COLOR_PAIR(3);
 
     push_history();
 
@@ -346,8 +365,13 @@ int main() {
 
         move(box_y + 1, box_x + 1);
         for (uint32_t i = 0; i < input_width; ++i) {
-            if (i + state.offset < state.input_len) {
-                printw("%c", state.input[i + state.offset]);
+            uint32_t index = i + state.offset;
+            if (index < state.input_len) {
+                if (mode == VISUAL && in_visual_select(index)) {
+                    attron(attr_visual);
+                }
+                printw("%c", state.input[index]);
+                attroff(attr_visual);
             } else {
                 printw(" ");
             }
@@ -383,6 +407,15 @@ int main() {
                         break;
                     case 'r':
                         mode = REPLACE;
+                        break;
+                    case 'v':
+                        mode = VISUAL;
+                        visual_start = state.cursor;
+                        break;
+                    case 'V':
+                        mode = VISUAL;
+                        visual_start = 0;
+                        state.cursor = state.input_len - 1;
                         break;
                     case 'i':
                         mode = INSERT;
@@ -558,6 +591,96 @@ int main() {
                             mode = NORMAL;
                             push_history();
                         }
+                        break;
+                }
+                break;
+
+            case VISUAL:
+                switch (key) {
+                    case K_ESCAPE:
+                        mode = NORMAL;
+                        break;
+                    case 'h':
+                    case KEY_LEFT:
+                        if (state.cursor > 0) {
+                            --state.cursor;
+                            update_offset_left();
+                        }
+                        break;
+                    case 'l':
+                    case KEY_RIGHT:
+                        if (state.cursor < MAX_INPUT - 1 &&
+                            state.cursor < state.input_len - 1) {
+                            ++state.cursor;
+                            update_offset_right();
+                        }
+                        break;
+                    case 'w':
+                        state.cursor = find_word_start(FALSE);
+                        update_offset_right();
+                        break;
+                    case 'e':
+                        state.cursor = find_word_end(FALSE);
+                        update_offset_right();
+                        break;
+                    case 'b':
+                        state.cursor = find_word_back(FALSE);
+                        update_offset_left();
+                        break;
+                    case 'W':
+                        state.cursor = find_word_start(TRUE);
+                        update_offset_right();
+                        break;
+                    case 'E':
+                        state.cursor = find_word_end(TRUE);
+                        update_offset_right();
+                        break;
+                    case 'B':
+                        state.cursor = find_word_back(TRUE);
+                        update_offset_left();
+                        break;
+                    case '^':
+                    case '_':
+                        for (state.cursor = 0; state.cursor < state.input_len;
+                             ++state.cursor) {
+                            if (!isspace(state.input[state.cursor])) {
+                                break;
+                            }
+                        }
+                        update_offset_left();
+                        break;
+                    case '0':
+                        state.cursor = 0;
+                        state.offset = 0;
+                        break;
+                    case '$':
+                        state.cursor = state.input_len - 1;
+                        state.offset = subsat(state.cursor + 2, input_width);
+                        break;
+                    case 'd':
+                    case 'x': {
+                        uint32_t start = min(state.cursor, visual_start);
+                        uint32_t size =
+                            difference(state.cursor, visual_start) + 1;
+                        for (uint32_t i = start; i <= state.input_len - size;
+                             ++i) {
+                            uint32_t new = i + size;
+                            if (new >= state.input_len) {
+                                break;
+                            }
+                            state.input[i] = state.input[new];
+                        }
+                        state.input_len -= size;
+                        if (state.cursor > visual_start) {
+                            state.cursor -= size - 1;
+                        }
+                        if (state.cursor + 1 >= state.input_len) {
+                            state.cursor = subsat(state.input_len, 1);
+                        }
+                        mode = NORMAL;
+                        push_history();
+                    } break;
+                    default:
                         break;
                 }
                 break;
