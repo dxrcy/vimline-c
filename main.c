@@ -317,6 +317,14 @@ int main() {
 
     signal(SIGINT, terminate);  // Clean up on SIGINT
 
+    start_color();         // Enable color
+    use_default_colors();  // Don't change the background color
+
+    init_pair(1, COLOR_BLUE, -1);
+    init_pair(2, COLOR_WHITE, -1);
+    const int attr_box = COLOR_PAIR(1) | A_DIM;
+    const int attr_details = COLOR_PAIR(2) | A_DIM;
+
     push_history();
 
     int key = 0;
@@ -329,10 +337,12 @@ int main() {
 
         input_width = min(max_cols - box_margin * 2 - 2, max_input_width);
         box_x = (max_cols - input_width) / 2 - 1;
-        box_y = 1;
+        box_y = max_rows / 2 - 1;
 
+        attron(attr_box);
         draw_box_outline(box_x, box_y, input_width + 2, state.offset > 0,
                          state.offset + input_width < state.input_len);
+        attroff(attr_box);
 
         move(box_y + 1, box_x + 1);
         for (uint32_t i = 0; i < input_width; ++i) {
@@ -344,10 +354,12 @@ int main() {
         }
 
         move(max_rows - 1, 0);
+        attron(attr_details);
         printw("%8s", mode_name(mode));
         printw(" [%3d /%3d]", state.cursor, state.input_len);
         printw(" [%3d /%3d]", history.index, history.len);
         printw(" 0x%02x", key);
+        attroff(attr_details);
 
         set_cursor(mode);
         move(box_y + 1, box_x + subsat(state.cursor, state.offset) + 1);
@@ -360,6 +372,7 @@ int main() {
             case NORMAL:
                 switch (key) {
                     case 'q':
+                    case K_ESCAPE:
                         terminate();
                         break;
                     case K_RETURN:
