@@ -241,7 +241,7 @@ int find_word_back(bool full_word) {
     return 0;
 }
 
-bool equals_state_input(const State* s1, const State* s2) {
+bool equals_state_input(const State* const s1, const State* const s2) {
     if (s1->input_len != s2->input_len) {
         return false;
     }
@@ -253,7 +253,9 @@ bool equals_state_input(const State* s1, const State* s2) {
     return true;
 }
 
-void copy_state(State* src, State* dest) { memcpy(dest, src, sizeof(State)); }
+void copy_state(const State* const src, State* const dest) {
+    memcpy(dest, src, sizeof(State));
+}
 
 void push_history() {
     // Delete all future history to be overwritten
