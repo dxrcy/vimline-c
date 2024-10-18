@@ -1,9 +1,9 @@
-CC=gcc
-CFLAGS=-Wall -Wextra -Wpedantic -lncurses
+CC = gcc
+CFLAGS = -Wall -Wextra -Wpedantic -lncurses
 
-TARGET=vimput
-PREFIX=/usr/local
-BINDIR=$(PREFIX)/bin
+TARGET = vimput
+PREFIX = /usr/local
+BINDIR = $(PREFIX)/bin
 
 $(TARGET): main.c
 	$(CC) $(CFLAGS) -o $(TARGET) main.c
