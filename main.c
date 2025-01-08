@@ -105,8 +105,9 @@ void set_cursor(enum VimMode mode) {
     fflush(stdout);
 }
 
-void draw_box_outline(uint32_t x, uint32_t y, uint32_t w, bool left_open,
-                      bool right_open) {
+void draw_box_outline(
+    uint32_t x, uint32_t y, uint32_t w, bool left_open, bool right_open
+) {
     // Top
     move(y, x);
     addch(ACS_ULCORNER);
@@ -351,14 +352,15 @@ bool in_visual_select(uint32_t index) {
 
 int main(const int argc, const char* const* const argv) {
     if (argc > 2 || (argc > 1 && argv[1][0] == '-')) {
-        fprintf(stderr,
-                "USAGE:\n"
-                "    vimput [FILENAME]\n"
-                "\n"
-                "ARGUMENTS:\n"
-                "    [FILENAME] (optional)\n"
-                "        Write the input to this file on <CR>\n"
-                "");
+        fprintf(
+            stderr,
+            "USAGE:\n"
+            "    vimput [FILENAME]\n"
+            "\n"
+            "ARGUMENTS:\n"
+            "    [FILENAME] (optional)\n"
+            "        Write the input to this file on <CR>\n"
+        );
         return 1;
     }
 
@@ -397,8 +399,13 @@ int main(const int argc, const char* const* const argv) {
         box_y = max_rows / 2 - 1;
 
         attron(attr_box);
-        draw_box_outline(box_x, box_y, input_width + 2, state.offset > 0,
-                         state.offset + input_width < state.input_len);
+        draw_box_outline(
+            box_x,
+            box_y,
+            input_width + 2,
+            state.offset > 0,
+            state.offset + input_width < state.input_len
+        );
         attroff(attr_box);
 
         move(box_y + 1, box_x + 1);
@@ -538,7 +545,8 @@ int main(const int argc, const char* const* const argv) {
                     case 'x':
                         if (state.input_len > 0) {
                             for (uint32_t i = state.cursor + 1;
-                                 i < state.input_len; ++i) {
+                                 i < state.input_len;
+                                 ++i) {
                                 state.input[i - 1] = state.input[i];
                             }
                             --state.input_len;
@@ -606,7 +614,8 @@ int main(const int argc, const char* const* const argv) {
                     default:
                         if (isprint(key) && state.input_len < MAX_INPUT) {
                             for (uint32_t i = state.input_len;
-                                 i >= state.cursor + 1; --i) {
+                                 i >= state.cursor + 1;
+                                 --i) {
                                 state.input[i] = state.input[i - 1];
                             }
                             state.input[state.cursor] = key;
