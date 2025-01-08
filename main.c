@@ -294,11 +294,33 @@ void redo_history() {
     copy_state(&history.states[history.index], &state);
 }
 
-void print_input() {
-    for (uint32_t i = 0; i < state.input_len; ++i) {
-        printf("%c", state.input[i]);
+void save_input(const char* const filename) {
+    // If no output file is specified, print instead
+    if (filename == NULL) {
+        for (uint32_t i = 0; i < state.input_len; ++i) {
+            printf("%c", state.input[i]);
+        }
+        printf("\n");
+        return;
     }
-    printf("\n");
+
+    FILE* file = fopen(filename, "w");
+    if (file == NULL) {
+        perror("Failed to open file");
+        exit(1);
+    }
+
+    for (uint32_t i = 0; i < state.input_len; ++i) {
+        if (fprintf(file, "%c", state.input[i]) < 1) {
+            perror("Failed to write file");
+            exit(1);
+        }
+    }
+
+    if (fclose(file) != 0) {
+        perror("Failed to close file");
+        exit(1);
+    }
 }
 
 void terminate() {
@@ -327,7 +349,21 @@ bool in_visual_select(uint32_t index) {
     return index >= visual_start && index <= state.cursor;
 }
 
-int main() {
+int main(const int argc, const char* const* const argv) {
+    if (argc > 2 || (argc > 1 && argv[1][0] == '-')) {
+        fprintf(stderr,
+                "USAGE:\n"
+                "    vimput [FILENAME]\n"
+                "\n"
+                "ARGUMENTS:\n"
+                "    [FILENAME] (optional)\n"
+                "        Write the input to this file on <CR>\n"
+                "");
+        return 1;
+    }
+
+    const char* const filename = argc > 1 ? argv[1] : NULL;
+
     initscr();
     noecho();              // Disable echoing
     cbreak();              // Disable line buffering
@@ -404,7 +440,7 @@ int main() {
                         break;
                     case K_RETURN:
                         endwin();
-                        print_input();
+                        save_input(filename);
                         exit(0);
                         break;
                     case 'r':
@@ -536,7 +572,7 @@ int main() {
                         break;
                     case K_RETURN:
                         endwin();
-                        print_input();
+                        save_input(filename);
                         exit(0);
                         break;
                     case K_LEFT:
