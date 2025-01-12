@@ -4,15 +4,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define CTRL(key) key - 0x60
-#define K_ESCAPE 0x1b
-#define K_LEFT 0x104
-#define K_RIGHT 0x105
-#define K_BACKSPACE 0x107
-#define K_RETURN 0x0a
+#define CTRL(key) ((key) - 0x60)
+#define K_ESCAPE (0x1b)
+#define K_LEFT (0x104)
+#define K_RIGHT (0x105)
+#define K_BACKSPACE (0x107)
+#define K_RETURN (0x0a)
 
-#define MAX_INPUT 200
-#define MAX_HISTORY 100
+#define MAX_INPUT (200)
+#define MAX_HISTORY (100)
 
 enum VimMode {
     NORMAL,
