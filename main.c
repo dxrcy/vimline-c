@@ -27,6 +27,7 @@ typedef struct State {
     uint32_t input_len;
     uint32_t cursor;
     uint32_t offset;
+    uint32_t visual_start;
 } State;
 
 // TODO: Use cyclic array or heap allocate
@@ -41,7 +42,6 @@ uint32_t BOX_Y = 0;
 uint32_t BOX_X = 0;
 
 enum VimMode MODE = MODE_NORMAL;
-uint32_t VISUAL_START = 0;
 
 const uint32_t CURSOR_LEFT = 5;
 const uint32_t CURSOR_RIGHT = 1;
@@ -328,13 +328,13 @@ void update_offset_right(State* state) {
 }
 
 bool in_visual_select(State* state, uint32_t index) {
-    if (state->cursor == VISUAL_START) {
-        return index == VISUAL_START;
+    if (state->cursor == state->visual_start) {
+        return index == state->visual_start;
     }
-    if (state->cursor < VISUAL_START) {
-        return index >= state->cursor && index <= VISUAL_START;
+    if (state->cursor < state->visual_start) {
+        return index >= state->cursor && index <= state->visual_start;
     }
-    return index >= VISUAL_START && index <= state->cursor;
+    return index >= state->visual_start && index <= state->cursor;
 }
 
 int main(const int argc, const char* const* const argv) {
@@ -353,16 +353,17 @@ int main(const int argc, const char* const* const argv) {
 
     const char* const filename = argc > 1 ? argv[1] : NULL;
 
-    History history = {
-        .states = {{{0}}},
-        .len = 0,
-        .index = 0,
-    };
     State state = {
         .input = "abc def ghi jkl lmn opq rst uvw xyz",
         .input_len = 9 * 3 + 8,
         .cursor = 0,
         .offset = 0,
+        .visual_start = 0,
+    };
+    History history = {
+        .states = {{{0}}},
+        .len = 0,
+        .index = 0,
     };
 
     initscr();
@@ -454,11 +455,11 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     case 'v':
                         MODE = MODE_VISUAL;
-                        VISUAL_START = state.cursor;
+                        state.visual_start = state.cursor;
                         break;
                     case 'V':
                         MODE = MODE_VISUAL;
-                        VISUAL_START = 0;
+                        state.visual_start = 0;
                         state.cursor = state.input_len - 1;
                         break;
                     case 'i':
@@ -642,8 +643,9 @@ int main(const int argc, const char* const* const argv) {
                 break;
 
             case MODE_VISUAL: {
-                uint32_t start = min(state.cursor, VISUAL_START);
-                uint32_t size = difference(state.cursor, VISUAL_START) + 1;
+                uint32_t start = min(state.cursor, state.visual_start);
+                uint32_t size =
+                    difference(state.cursor, state.visual_start) + 1;
                 switch (key) {
                     case K_ESCAPE:
                         MODE = MODE_NORMAL;
@@ -716,7 +718,7 @@ int main(const int argc, const char* const* const argv) {
                             state.input[i] = state.input[new];
                         }
                         state.input_len -= size;
-                        if (state.cursor > VISUAL_START) {
+                        if (state.cursor > state.visual_start) {
                             state.cursor -= size - 1;
                         }
                         if (state.cursor + 1 >= state.input_len) {
@@ -730,7 +732,7 @@ int main(const int argc, const char* const* const argv) {
                             state.input[start + i] =
                                 tolower(state.input[start + i]);
                         }
-                        if (state.cursor > VISUAL_START) {
+                        if (state.cursor > state.visual_start) {
                             state.cursor -= size - 1;
                         }
                         MODE = MODE_NORMAL;
@@ -741,7 +743,7 @@ int main(const int argc, const char* const* const argv) {
                             state.input[start + i] =
                                 toupper(state.input[start + i]);
                         }
-                        if (state.cursor > VISUAL_START) {
+                        if (state.cursor > state.visual_start) {
                             state.cursor -= size - 1;
                         }
                         MODE = MODE_NORMAL;
