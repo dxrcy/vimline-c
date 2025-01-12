@@ -39,6 +39,7 @@ typedef struct History {
 typedef struct State {
     Snap snap;
     uint32_t visual_start;
+    History history;
 } State;
 
 uint32_t INPUT_WIDTH = 20;
@@ -247,41 +248,43 @@ void copy_snap(const Snap* const src, Snap* const dest) {
     memcpy(dest, src, sizeof(Snap));
 }
 
-void push_history(Snap* snap, History* history) {
+void push_history(State* state) {
     // Delete all future history to be overwritten
-    if (history->index <= history->len) {
-        history->len = history->index;
+    if (state->history.index <= state->history.len) {
+        state->history.len = state->history.index;
     }
     // Ignore if same as last entry
-    if (history->len > 0 &&
-        equals_snap_input(snap, &history->snaps[history->len - 1])) {
+    if (state->history.len > 0 &&
+        equals_snap_input(
+            &state->snap, &state->history.snaps[state->history.len - 1]
+        )) {
         return;
     }
-    if (history->len >= MAX_HISTORY) {
-        for (uint32_t i = 1; i < history->len; ++i) {
-            copy_snap(&history->snaps[i], &history->snaps[i - 1]);
+    if (state->history.len >= MAX_HISTORY) {
+        for (uint32_t i = 1; i < state->history.len; ++i) {
+            copy_snap(&state->history.snaps[i], &state->history.snaps[i - 1]);
         }
     } else {
-        ++history->len;
-        ++history->index;
+        ++state->history.len;
+        ++state->history.index;
     }
 
-    copy_snap(snap, &history->snaps[history->index - 1]);
+    copy_snap(&state->snap, &state->history.snaps[state->history.index - 1]);
 }
 
-void undo_history(Snap* snap, History* history) {
-    if (history->len == 0 || history->index <= 0) {
+void undo_history(State* state) {
+    if (state->history.len == 0 || state->history.index <= 0) {
         return;
     }
-    --history->index;
-    copy_snap(&history->snaps[history->index], snap);
+    --state->history.index;
+    copy_snap(&state->history.snaps[state->history.index], &state->snap);
 }
-void redo_history(Snap* snap, History* history) {
-    if (history->index + 1 >= history->len) {
+void redo_history(State* state) {
+    if (state->history.index + 1 >= state->history.len) {
         return;
     }
-    ++history->index;
-    copy_snap(&history->snaps[history->index], snap);
+    ++state->history.index;
+    copy_snap(&state->history.snaps[state->history.index], &state->snap);
 }
 
 void save_input(Snap* snap, const char* const filename) {
@@ -365,11 +368,12 @@ int main(const int argc, const char* const* const argv) {
                 .offset = 0,
             },
         .visual_start = 0,
-    };
-    History history = {
-        .snaps = {{{0}}},
-        .len = 0,
-        .index = 0,
+        .history =
+            {
+                .snaps = {{{0}}},
+                .len = 0,
+                .index = 0,
+            },
     };
 
     initscr();
@@ -390,7 +394,7 @@ int main(const int argc, const char* const* const argv) {
     const int attr_details = COLOR_PAIR(2) | A_DIM;
     const int attr_visual = COLOR_PAIR(3);
 
-    push_history(&state.snap, &history);
+    push_history(&state);
 
     int key = 0;
 
@@ -432,7 +436,7 @@ int main(const int argc, const char* const* const argv) {
         attron(attr_details);
         printw("%8s", mode_name(mode));
         printw(" [%3d /%3d]", state.snap.cursor, state.snap.input_len);
-        printw(" [%3d /%3d]", history.index, history.len);
+        printw(" [%3d /%3d]", state.history.index, state.history.len);
         printw(" 0x%02x", key);
         attroff(attr_details);
 
@@ -550,7 +554,7 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     case 'D':
                         state.snap.input_len = state.snap.cursor;
-                        push_history(&state.snap, &history);
+                        push_history(&state);
                         break;
                     case 'x':
                         if (state.snap.input_len > 0) {
@@ -565,14 +569,14 @@ int main(const int argc, const char* const* const argv) {
                                 state.snap.cursor = state.snap.input_len - 1;
                             }
                             update_offset_left(&state.snap);
-                            push_history(&state.snap, &history);
+                            push_history(&state);
                         }
                         break;
                     case 'u':
-                        undo_history(&state.snap, &history);
+                        undo_history(&state);
                         break;
                     case CTRL('r'):
-                        redo_history(&state.snap, &history);
+                        redo_history(&state);
                         break;
                     default:
                         break;
@@ -586,7 +590,7 @@ int main(const int argc, const char* const* const argv) {
                         if (state.snap.cursor > 0) {
                             --state.snap.cursor;
                         }
-                        push_history(&state.snap, &history);
+                        push_history(&state);
                         break;
                     case K_RETURN:
                         endwin();
@@ -648,7 +652,7 @@ int main(const int argc, const char* const* const argv) {
                         if (isprint(key)) {
                             state.snap.input[state.snap.cursor] = key;
                             mode = MODE_NORMAL;
-                            push_history(&state.snap, &history);
+                            push_history(&state);
                         }
                         break;
                 }
@@ -740,7 +744,7 @@ int main(const int argc, const char* const* const argv) {
                             state.snap.cursor = subsat(state.snap.input_len, 1);
                         }
                         mode = MODE_NORMAL;
-                        push_history(&state.snap, &history);
+                        push_history(&state);
                     } break;
                     case 'u': {
                         for (uint32_t i = 0; i < size; ++i) {
@@ -751,7 +755,7 @@ int main(const int argc, const char* const* const argv) {
                             state.snap.cursor -= size - 1;
                         }
                         mode = MODE_NORMAL;
-                        push_history(&state.snap, &history);
+                        push_history(&state);
                     }; break;
                     case 'U': {
                         for (uint32_t i = 0; i < size; ++i) {
@@ -762,7 +766,7 @@ int main(const int argc, const char* const* const argv) {
                             state.snap.cursor -= size - 1;
                         }
                         mode = MODE_NORMAL;
-                        push_history(&state.snap, &history);
+                        push_history(&state);
                     }; break;
                     default:
                         break;
