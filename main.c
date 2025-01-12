@@ -41,7 +41,7 @@ typedef struct State {
     Snap snap;
     uint32_t visual_start;
     History history;
-    const char* const filename;
+    const char* filename;
 } State;
 
 static struct {
@@ -55,19 +55,26 @@ const uint32_t CURSOR_RIGHT = 1;
 const uint32_t MAX_INPUT_WIDTH = 70;
 const uint32_t BOX_MARGIN = 2;
 
-uint32_t subsat(uint32_t lhs, uint32_t rhs) {
+const int PAIR_BOX = 1;
+const int PAIR_DETAILS = 2;
+const int PAIR_VISUAL = 3;
+const int ATTR_BOX = COLOR_PAIR(PAIR_BOX) | A_DIM;
+const int ATTR_DETAILS = COLOR_PAIR(PAIR_DETAILS) | A_DIM;
+const int ATTR_VISUAL = COLOR_PAIR(PAIR_VISUAL);
+
+uint32_t subsat(const uint32_t lhs, const uint32_t rhs) {
     if (rhs >= lhs) {
         return 0;
     }
     return lhs - rhs;
 }
-uint32_t min(uint32_t lhs, uint32_t rhs) {
+uint32_t min(const uint32_t lhs, const uint32_t rhs) {
     if (rhs >= lhs) {
         return lhs;
     }
     return rhs;
 }
-uint32_t difference(uint32_t lhs, uint32_t rhs) {
+uint32_t difference(const uint32_t lhs, const uint32_t rhs) {
     if (lhs >= rhs) {
         return lhs - rhs;
     }
@@ -98,14 +105,18 @@ void set_cursor(enum VimMode mode) {
     fflush(stdout);
 }
 
-void update_input_box(int max_rows, int max_cols) {
+void update_input_box(const int max_rows, const int max_cols) {
     input_box.width = min(max_cols - BOX_MARGIN * 2 - 2, MAX_INPUT_WIDTH);
     input_box.x = (max_cols - input_box.width) / 2 - 1;
     input_box.y = max_rows / 2 - 1;
 }
 
 void draw_box_outline(
-    uint32_t x, uint32_t y, uint32_t w, bool left_open, bool right_open
+    const uint32_t x,
+    const uint32_t y,
+    const uint32_t w,
+    const bool left_open,
+    const bool right_open
 ) {
     // Top
     move(y, x);
@@ -130,7 +141,7 @@ void draw_box_outline(
     addch(ACS_LRCORNER);
 }
 
-int find_word_start(Snap* snap, bool full_word) {
+int find_word_start(Snap* const snap, const bool full_word) {
     // Empty line
     if (snap->input_len < 1) {
         return 0;
@@ -176,7 +187,7 @@ int find_word_start(Snap* snap, bool full_word) {
     return snap->input_len - 1;
 }
 
-int find_word_end(Snap* snap, bool full_word) {
+int find_word_end(Snap* const snap, const bool full_word) {
     // Empty line
     if (snap->input_len < 1) {
         return 0;
@@ -211,7 +222,7 @@ int find_word_end(Snap* snap, bool full_word) {
     return snap->input_len - 1;
 }
 
-int find_word_back(Snap* snap, bool full_word) {
+int find_word_back(Snap* const snap, const bool full_word) {
     // At start of line
     if (snap->cursor <= 1) {
         return 0;
@@ -242,12 +253,12 @@ int find_word_back(Snap* snap, bool full_word) {
     return 0;
 }
 
-bool equals_snap_input(const Snap* const s1, const Snap* const s2) {
-    if (s1->input_len != s2->input_len) {
+bool equals_snap_input(const Snap* const a, const Snap* const b) {
+    if (a->input_len != b->input_len) {
         return false;
     }
-    for (uint32_t i = 0; i < s1->input_len; ++i) {
-        if (s1->input[i] != s2->input[i]) {
+    for (uint32_t i = 0; i < a->input_len; ++i) {
+        if (a->input[i] != b->input[i]) {
             return false;
         }
     }
@@ -258,7 +269,7 @@ void copy_snap(const Snap* const src, Snap* const dest) {
     memcpy(dest, src, sizeof(Snap));
 }
 
-void push_history(State* state) {
+void push_history(State* const state) {
     // Delete all future history to be overwritten
     if (state->history.index <= state->history.len) {
         state->history.len = state->history.index;
@@ -282,14 +293,14 @@ void push_history(State* state) {
     copy_snap(&state->snap, &state->history.snaps[state->history.index - 1]);
 }
 
-void undo_history(State* state) {
+void undo_history(State* const state) {
     if (state->history.len == 0 || state->history.index <= 0) {
         return;
     }
     --state->history.index;
     copy_snap(&state->history.snaps[state->history.index], &state->snap);
 }
-void redo_history(State* state) {
+void redo_history(State* const state) {
     if (state->history.index + 1 >= state->history.len) {
         return;
     }
@@ -297,24 +308,24 @@ void redo_history(State* state) {
     copy_snap(&state->history.snaps[state->history.index], &state->snap);
 }
 
-void save_input(Snap* snap, const char* const filename) {
+void save_input(const State* const state) {
     // If no output file is specified, print instead
-    if (filename == NULL) {
-        for (uint32_t i = 0; i < snap->input_len; ++i) {
-            printf("%c", snap->input[i]);
+    if (state->filename == NULL) {
+        for (uint32_t i = 0; i < state->snap.input_len; ++i) {
+            printf("%c", state->snap.input[i]);
         }
         printf("\n");
         return;
     }
 
-    FILE* file = fopen(filename, "w");
+    FILE* file = fopen(state->filename, "w");
     if (file == NULL) {
         perror("Failed to open file");
         exit(1);
     }
 
-    for (uint32_t i = 0; i < snap->input_len; ++i) {
-        if (fprintf(file, "%c", snap->input[i]) < 1) {
+    for (uint32_t i = 0; i < state->snap.input_len; ++i) {
+        if (fprintf(file, "%c", state->snap.input[i]) < 1) {
             perror("Failed to write file");
             exit(1);
         }
@@ -331,18 +342,18 @@ void terminate() {
     exit(0);
 }
 
-void update_offset_left(Snap* snap) {
+void update_offset_left(Snap* const snap) {
     if (snap->cursor < snap->offset + CURSOR_LEFT) {
         snap->offset = subsat(snap->cursor, CURSOR_LEFT);
     }
 }
-void update_offset_right(Snap* snap, uint32_t width) {
+void update_offset_right(Snap* const snap, const uint32_t width) {
     if (snap->cursor + CURSOR_RIGHT > width) {
         snap->offset = subsat(snap->cursor + CURSOR_RIGHT, width);
     }
 }
 
-bool in_visual_select(State* state, uint32_t index) {
+bool in_visual_select(const State* const state, const uint32_t index) {
     if (state->snap.cursor == state->visual_start) {
         return index == state->visual_start;
     }
@@ -352,18 +363,14 @@ bool in_visual_select(State* state, uint32_t index) {
     return index >= state->visual_start && index <= state->snap.cursor;
 }
 
-const int attr_box = COLOR_PAIR(1) | A_DIM;
-const int attr_details = COLOR_PAIR(2) | A_DIM;
-const int attr_visual = COLOR_PAIR(3);
-
-void frame(State* state, int* const key) {
+void frame(State* const state, int* const key) {
     clear();
 
     int max_rows = getmaxy(stdscr);
     int max_cols = getmaxx(stdscr);
     update_input_box(max_rows, max_cols);
 
-    attron(attr_box);
+    attron(ATTR_BOX);
     draw_box_outline(
         input_box.x,
         input_box.y,
@@ -371,29 +378,29 @@ void frame(State* state, int* const key) {
         state->snap.offset > 0,
         state->snap.offset + input_box.width < state->snap.input_len
     );
-    attroff(attr_box);
+    attroff(ATTR_BOX);
 
     move(input_box.y + 1, input_box.x + 1);
     for (uint32_t i = 0; i < input_box.width; ++i) {
         uint32_t index = i + state->snap.offset;
         if (index < state->snap.input_len) {
             if (state->mode == MODE_VISUAL && in_visual_select(state, index)) {
-                attron(attr_visual);
+                attron(ATTR_VISUAL);
             }
             printw("%c", state->snap.input[index]);
-            attroff(attr_visual);
+            attroff(ATTR_VISUAL);
         } else {
             printw(" ");
         }
     }
 
     move(max_rows - 1, 0);
-    attron(attr_details);
+    attron(ATTR_DETAILS);
     printw("%8s", mode_name(state->mode));
     printw(" [%3d /%3d]", state->snap.cursor, state->snap.input_len);
     printw(" [%3d /%3d]", state->history.index, state->history.len);
     printw(" 0x%02x", *key);
-    attroff(attr_details);
+    attroff(ATTR_DETAILS);
 
     set_cursor(state->mode);
     move(
@@ -414,7 +421,7 @@ void frame(State* state, int* const key) {
                     break;
                 case K_RETURN:
                     endwin();
-                    save_input(&state->snap, state->filename);
+                    save_input(state);
                     exit(0);
                     break;
                 case 'r':
@@ -550,7 +557,7 @@ void frame(State* state, int* const key) {
                     break;
                 case K_RETURN:
                     endwin();
-                    save_input(&state->snap, state->filename);
+                    save_input(state);
                     exit(0);
                     break;
                 case K_LEFT:
@@ -773,9 +780,9 @@ int main(const int argc, const char* const* const argv) {
     start_color();         // Enable color
     use_default_colors();  // Don't change the background color
 
-    init_pair(1, COLOR_BLUE, -1);
-    init_pair(2, COLOR_WHITE, -1);
-    init_pair(3, -1, COLOR_BLUE);
+    init_pair(PAIR_BOX, COLOR_BLUE, -1);
+    init_pair(PAIR_DETAILS, COLOR_WHITE, -1);
+    init_pair(PAIR_VISUAL, -1, COLOR_BLUE);
 
     push_history(&state);
 

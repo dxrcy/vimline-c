@@ -11,3 +11,5 @@ make
 sudo make install
 ```
 
+There are still a few bugs btw!!
+
