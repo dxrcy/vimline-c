@@ -15,10 +15,10 @@
 #define MAX_HISTORY (100)
 
 enum VimMode {
-    NORMAL,
-    INSERT,
-    REPLACE,
-    VISUAL,
+    MODE_NORMAL,
+    MODE_INSERT,
+    MODE_REPLACE,
+    MODE_VISUAL,
 };
 
 typedef struct State {
@@ -40,7 +40,7 @@ uint32_t INPUT_WIDTH = 20;
 uint32_t BOX_Y = 0;
 uint32_t BOX_X = 0;
 
-enum VimMode MODE = NORMAL;
+enum VimMode MODE = MODE_NORMAL;
 uint32_t VISUAL_START = 0;
 
 State STATE = {
@@ -76,13 +76,13 @@ uint32_t difference(uint32_t lhs, uint32_t rhs) {
 
 const char* mode_name(enum VimMode mode) {
     switch (mode) {
-        case NORMAL:
+        case MODE_NORMAL:
             return "NORMAL";
-        case INSERT:
+        case MODE_INSERT:
             return "INSERT";
-        case REPLACE:
+        case MODE_REPLACE:
             return "REPLACE";
-        case VISUAL:
+        case MODE_VISUAL:
             return "VISUAL";
         default:
             return "?";
@@ -90,7 +90,7 @@ const char* mode_name(enum VimMode mode) {
 }
 
 void set_cursor(enum VimMode mode) {
-    if (mode == INSERT) {
+    if (mode == MODE_INSERT) {
         printf("\033[5 q");
     } else {
         printf("\033[1 q");
@@ -412,7 +412,7 @@ int main(const int argc, const char* const* const argv) {
         for (uint32_t i = 0; i < INPUT_WIDTH; ++i) {
             uint32_t index = i + STATE.offset;
             if (index < STATE.input_len) {
-                if (MODE == VISUAL && in_visual_select(index)) {
+                if (MODE == MODE_VISUAL && in_visual_select(index)) {
                     attron(attr_visual);
                 }
                 printw("%c", STATE.input[index]);
@@ -438,7 +438,7 @@ int main(const int argc, const char* const* const argv) {
         key = getch();
 
         switch (MODE) {
-            case NORMAL:
+            case MODE_NORMAL:
                 switch (key) {
                     case 'q':
                         /* case K_ESCAPE: */
@@ -451,33 +451,33 @@ int main(const int argc, const char* const* const argv) {
                         exit(0);
                         break;
                     case 'r':
-                        MODE = REPLACE;
+                        MODE = MODE_REPLACE;
                         break;
                     case 'v':
-                        MODE = VISUAL;
+                        MODE = MODE_VISUAL;
                         VISUAL_START = STATE.cursor;
                         break;
                     case 'V':
-                        MODE = VISUAL;
+                        MODE = MODE_VISUAL;
                         VISUAL_START = 0;
                         STATE.cursor = STATE.input_len - 1;
                         break;
                     case 'i':
-                        MODE = INSERT;
+                        MODE = MODE_INSERT;
                         break;
                     case 'a':
-                        MODE = INSERT;
+                        MODE = MODE_INSERT;
                         if (STATE.cursor < STATE.input_len) {
                             ++STATE.cursor;
                         }
                         break;
                     case 'I':
-                        MODE = INSERT;
+                        MODE = MODE_INSERT;
                         STATE.cursor = 0;
                         STATE.offset = 0;
                         break;
                     case 'A':
-                        MODE = INSERT;
+                        MODE = MODE_INSERT;
                         STATE.cursor = STATE.input_len;
                         STATE.offset = subsat(STATE.cursor + 1, INPUT_WIDTH);
                         break;
@@ -569,10 +569,10 @@ int main(const int argc, const char* const* const argv) {
                 }
                 break;
 
-            case INSERT:
+            case MODE_INSERT:
                 switch (key) {
                     case K_ESCAPE:
-                        MODE = NORMAL;
+                        MODE = MODE_NORMAL;
                         if (STATE.cursor > 0) {
                             --STATE.cursor;
                         }
@@ -627,27 +627,27 @@ int main(const int argc, const char* const* const argv) {
                 };
                 break;
 
-            case REPLACE:
+            case MODE_REPLACE:
                 switch (key) {
                     case K_ESCAPE:
-                        MODE = NORMAL;
+                        MODE = MODE_NORMAL;
                         break;
                     default:
                         if (isprint(key)) {
                             STATE.input[STATE.cursor] = key;
-                            MODE = NORMAL;
+                            MODE = MODE_NORMAL;
                             push_history(&history);
                         }
                         break;
                 }
                 break;
 
-            case VISUAL: {
+            case MODE_VISUAL: {
                 uint32_t start = min(STATE.cursor, VISUAL_START);
                 uint32_t size = difference(STATE.cursor, VISUAL_START) + 1;
                 switch (key) {
                     case K_ESCAPE:
-                        MODE = NORMAL;
+                        MODE = MODE_NORMAL;
                         break;
                     case 'h':
                     case KEY_LEFT:
@@ -723,7 +723,7 @@ int main(const int argc, const char* const* const argv) {
                         if (STATE.cursor + 1 >= STATE.input_len) {
                             STATE.cursor = subsat(STATE.input_len, 1);
                         }
-                        MODE = NORMAL;
+                        MODE = MODE_NORMAL;
                         push_history(&history);
                     } break;
                     case 'u': {
@@ -734,7 +734,7 @@ int main(const int argc, const char* const* const argv) {
                         if (STATE.cursor > VISUAL_START) {
                             STATE.cursor -= size - 1;
                         }
-                        MODE = NORMAL;
+                        MODE = MODE_NORMAL;
                         push_history(&history);
                     }; break;
                     case 'U': {
@@ -745,7 +745,7 @@ int main(const int argc, const char* const* const argv) {
                         if (STATE.cursor > VISUAL_START) {
                             STATE.cursor -= size - 1;
                         }
-                        MODE = NORMAL;
+                        MODE = MODE_NORMAL;
                         push_history(&history);
                     }; break;
                     default:
