@@ -50,12 +50,6 @@ State STATE = {
     .offset = 0,
 };
 
-History HISTORY = {
-    .states = {{{0}}},
-    .len = 0,
-    .index = 0,
-};
-
 const uint32_t CURSOR_LEFT = 5;
 const uint32_t CURSOR_RIGHT = 1;
 const uint32_t MAX_INPUT_WIDTH = 70;
@@ -258,41 +252,41 @@ void copy_state(const State* const src, State* const dest) {
     memcpy(dest, src, sizeof(State));
 }
 
-void push_history() {
+void push_history(History* history) {
     // Delete all future history to be overwritten
-    if (HISTORY.index <= HISTORY.len) {
-        HISTORY.len = HISTORY.index;
+    if (history->index <= history->len) {
+        history->len = history->index;
     }
     // Ignore if same as last entry
-    if (HISTORY.len > 0 &&
-        equals_state_input(&STATE, &HISTORY.states[HISTORY.len - 1])) {
+    if (history->len > 0 &&
+        equals_state_input(&STATE, &history->states[history->len - 1])) {
         return;
     }
-    if (HISTORY.len >= MAX_HISTORY) {
-        for (uint32_t i = 1; i < HISTORY.len; ++i) {
-            copy_state(&HISTORY.states[i], &HISTORY.states[i - 1]);
+    if (history->len >= MAX_HISTORY) {
+        for (uint32_t i = 1; i < history->len; ++i) {
+            copy_state(&history->states[i], &history->states[i - 1]);
         }
     } else {
-        ++HISTORY.len;
-        ++HISTORY.index;
+        ++history->len;
+        ++history->index;
     }
 
-    copy_state(&STATE, &HISTORY.states[HISTORY.index - 1]);
+    copy_state(&STATE, &history->states[history->index - 1]);
 }
 
-void undo_history() {
-    if (HISTORY.len == 0 || HISTORY.index <= 0) {
+void undo_history(History* history) {
+    if (history->len == 0 || history->index <= 0) {
         return;
     }
-    --HISTORY.index;
-    copy_state(&HISTORY.states[HISTORY.index], &STATE);
+    --history->index;
+    copy_state(&history->states[history->index], &STATE);
 }
-void redo_history() {
-    if (HISTORY.index + 1 >= HISTORY.len) {
+void redo_history(History* history) {
+    if (history->index + 1 >= history->len) {
         return;
     }
-    ++HISTORY.index;
-    copy_state(&HISTORY.states[HISTORY.index], &STATE);
+    ++history->index;
+    copy_state(&history->states[history->index], &STATE);
 }
 
 void save_input(const char* const filename) {
@@ -366,6 +360,12 @@ int main(const int argc, const char* const* const argv) {
 
     const char* const filename = argc > 1 ? argv[1] : NULL;
 
+    History history = {
+        .states = {{{0}}},
+        .len = 0,
+        .index = 0,
+    };
+
     initscr();
     noecho();              // Disable echoing
     cbreak();              // Disable line buffering
@@ -384,7 +384,7 @@ int main(const int argc, const char* const* const argv) {
     const int attr_details = COLOR_PAIR(2) | A_DIM;
     const int attr_visual = COLOR_PAIR(3);
 
-    push_history();
+    push_history(&history);
 
     int key = 0;
 
@@ -426,7 +426,7 @@ int main(const int argc, const char* const* const argv) {
         attron(attr_details);
         printw("%8s", mode_name(MODE));
         printw(" [%3d /%3d]", STATE.cursor, STATE.input_len);
-        printw(" [%3d /%3d]", HISTORY.index, HISTORY.len);
+        printw(" [%3d /%3d]", history.index, history.len);
         printw(" 0x%02x", key);
         attroff(attr_details);
 
@@ -540,7 +540,7 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     case 'D':
                         STATE.input_len = STATE.cursor;
-                        push_history();
+                        push_history(&history);
                         break;
                     case 'x':
                         if (STATE.input_len > 0) {
@@ -555,14 +555,14 @@ int main(const int argc, const char* const* const argv) {
                                 STATE.cursor = STATE.input_len - 1;
                             }
                             update_offset_left();
-                            push_history();
+                            push_history(&history);
                         }
                         break;
                     case 'u':
-                        undo_history();
+                        undo_history(&history);
                         break;
                     case CTRL('r'):
-                        redo_history();
+                        redo_history(&history);
                         break;
                     default:
                         break;
@@ -576,7 +576,7 @@ int main(const int argc, const char* const* const argv) {
                         if (STATE.cursor > 0) {
                             --STATE.cursor;
                         }
-                        push_history();
+                        push_history(&history);
                         break;
                     case K_RETURN:
                         endwin();
@@ -636,7 +636,7 @@ int main(const int argc, const char* const* const argv) {
                         if (isprint(key)) {
                             STATE.input[STATE.cursor] = key;
                             MODE = NORMAL;
-                            push_history();
+                            push_history(&history);
                         }
                         break;
                 }
@@ -724,7 +724,7 @@ int main(const int argc, const char* const* const argv) {
                             STATE.cursor = subsat(STATE.input_len, 1);
                         }
                         MODE = NORMAL;
-                        push_history();
+                        push_history(&history);
                     } break;
                     case 'u': {
                         for (uint32_t i = 0; i < size; ++i) {
@@ -735,7 +735,7 @@ int main(const int argc, const char* const* const argv) {
                             STATE.cursor -= size - 1;
                         }
                         MODE = NORMAL;
-                        push_history();
+                        push_history(&history);
                     }; break;
                     case 'U': {
                         for (uint32_t i = 0; i < size; ++i) {
@@ -746,7 +746,7 @@ int main(const int argc, const char* const* const argv) {
                             STATE.cursor -= size - 1;
                         }
                         MODE = NORMAL;
-                        push_history();
+                        push_history(&history);
                     }; break;
                     default:
                         break;
