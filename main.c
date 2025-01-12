@@ -186,6 +186,7 @@ int find_word_end(bool full_word) {
     if (state.cursor + 1 >= state.input_len) {
         return state.input_len - 1;
     }
+    ++state.cursor;  // Always move at least one character
     // On a sequence of spaces (>=1)
     // Look for start of next word, start from there instead
     while (state.cursor + 1 < state.input_len &&
