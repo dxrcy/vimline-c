@@ -42,9 +42,11 @@ typedef struct State {
     History history;
 } State;
 
-uint32_t INPUT_WIDTH = 20;
-uint32_t BOX_Y = 0;
-uint32_t BOX_X = 0;
+static struct {
+    uint32_t x;
+    uint32_t y;
+    uint32_t width;
+} input_box = {.x = 0, .y = 0, .width = 20};
 
 const uint32_t CURSOR_LEFT = 5;
 const uint32_t CURSOR_RIGHT = 1;
@@ -326,9 +328,9 @@ void update_offset_left(Snap* snap) {
         snap->offset = subsat(snap->cursor, CURSOR_LEFT);
     }
 }
-void update_offset_right(Snap* snap) {
-    if (snap->cursor + CURSOR_RIGHT > INPUT_WIDTH) {
-        snap->offset = subsat(snap->cursor + CURSOR_RIGHT, INPUT_WIDTH);
+void update_offset_right(Snap* snap, uint32_t width) {
+    if (snap->cursor + CURSOR_RIGHT > width) {
+        snap->offset = subsat(snap->cursor + CURSOR_RIGHT, width);
     }
 }
 
@@ -404,22 +406,22 @@ int main(const int argc, const char* const* const argv) {
         int max_rows = getmaxy(stdscr);
         int max_cols = getmaxx(stdscr);
 
-        INPUT_WIDTH = min(max_cols - BOX_MARGIN * 2 - 2, MAX_INPUT_WIDTH);
-        BOX_X = (max_cols - INPUT_WIDTH) / 2 - 1;
-        BOX_Y = max_rows / 2 - 1;
+        input_box.width = min(max_cols - BOX_MARGIN * 2 - 2, MAX_INPUT_WIDTH);
+        input_box.x = (max_cols - input_box.width) / 2 - 1;
+        input_box.y = max_rows / 2 - 1;
 
         attron(attr_box);
         draw_box_outline(
-            BOX_X,
-            BOX_Y,
-            INPUT_WIDTH + 2,
+            input_box.x,
+            input_box.y,
+            input_box.width + 2,
             state.snap.offset > 0,
-            state.snap.offset + INPUT_WIDTH < state.snap.input_len
+            state.snap.offset + input_box.width < state.snap.input_len
         );
         attroff(attr_box);
 
-        move(BOX_Y + 1, BOX_X + 1);
-        for (uint32_t i = 0; i < INPUT_WIDTH; ++i) {
+        move(input_box.y + 1, input_box.x + 1);
+        for (uint32_t i = 0; i < input_box.width; ++i) {
             uint32_t index = i + state.snap.offset;
             if (index < state.snap.input_len) {
                 if (mode == MODE_VISUAL && in_visual_select(&state, index)) {
@@ -442,7 +444,8 @@ int main(const int argc, const char* const* const argv) {
 
         set_cursor(mode);
         move(
-            BOX_Y + 1, BOX_X + subsat(state.snap.cursor, state.snap.offset) + 1
+            input_box.y + 1,
+            input_box.x + subsat(state.snap.cursor, state.snap.offset) + 1
         );
 
         refresh();
@@ -491,7 +494,7 @@ int main(const int argc, const char* const* const argv) {
                         mode = MODE_INSERT;
                         state.snap.cursor = state.snap.input_len;
                         state.snap.offset =
-                            subsat(state.snap.cursor + 1, INPUT_WIDTH);
+                            subsat(state.snap.cursor + 1, input_box.width);
                         break;
                     case 'h':
                     case KEY_LEFT:
@@ -505,16 +508,16 @@ int main(const int argc, const char* const* const argv) {
                         if (state.snap.cursor < MAX_INPUT - 1 &&
                             state.snap.cursor < state.snap.input_len - 1) {
                             ++state.snap.cursor;
-                            update_offset_right(&state.snap);
+                            update_offset_right(&state.snap, input_box.width);
                         }
                         break;
                     case 'w':
                         state.snap.cursor = find_word_start(&state.snap, FALSE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'e':
                         state.snap.cursor = find_word_end(&state.snap, FALSE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'b':
                         state.snap.cursor = find_word_back(&state.snap, FALSE);
@@ -522,11 +525,11 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     case 'W':
                         state.snap.cursor = find_word_start(&state.snap, TRUE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'E':
                         state.snap.cursor = find_word_end(&state.snap, TRUE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'B':
                         state.snap.cursor = find_word_back(&state.snap, TRUE);
@@ -550,7 +553,7 @@ int main(const int argc, const char* const* const argv) {
                     case '$':
                         state.snap.cursor = state.snap.input_len - 1;
                         state.snap.offset =
-                            subsat(state.snap.cursor + 2, INPUT_WIDTH);
+                            subsat(state.snap.cursor + 2, input_box.width);
                         break;
                     case 'D':
                         state.snap.input_len = state.snap.cursor;
@@ -607,7 +610,7 @@ int main(const int argc, const char* const* const argv) {
                         if (state.snap.cursor < MAX_INPUT &&
                             state.snap.cursor < state.snap.input_len) {
                             ++state.snap.cursor;
-                            update_offset_right(&state.snap);
+                            update_offset_right(&state.snap, input_box.width);
                         }
                         break;
                     case K_BACKSPACE:
@@ -637,7 +640,7 @@ int main(const int argc, const char* const* const argv) {
                             state.snap.input[state.snap.cursor] = key;
                             ++state.snap.cursor;
                             ++state.snap.input_len;
-                            update_offset_right(&state.snap);
+                            update_offset_right(&state.snap, input_box.width);
                         }
                         break;
                 };
@@ -678,16 +681,16 @@ int main(const int argc, const char* const* const argv) {
                         if (state.snap.cursor < MAX_INPUT - 1 &&
                             state.snap.cursor < state.snap.input_len - 1) {
                             ++state.snap.cursor;
-                            update_offset_right(&state.snap);
+                            update_offset_right(&state.snap, input_box.width);
                         }
                         break;
                     case 'w':
                         state.snap.cursor = find_word_start(&state.snap, FALSE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'e':
                         state.snap.cursor = find_word_end(&state.snap, FALSE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'b':
                         state.snap.cursor = find_word_back(&state.snap, FALSE);
@@ -695,11 +698,11 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     case 'W':
                         state.snap.cursor = find_word_start(&state.snap, TRUE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'E':
                         state.snap.cursor = find_word_end(&state.snap, TRUE);
-                        update_offset_right(&state.snap);
+                        update_offset_right(&state.snap, input_box.width);
                         break;
                     case 'B':
                         state.snap.cursor = find_word_back(&state.snap, TRUE);
@@ -723,7 +726,7 @@ int main(const int argc, const char* const* const argv) {
                     case '$':
                         state.snap.cursor = state.snap.input_len - 1;
                         state.snap.offset =
-                            subsat(state.snap.cursor + 2, INPUT_WIDTH);
+                            subsat(state.snap.cursor + 2, input_box.width);
                         break;
                     case 'd':
                     case 'x': {
