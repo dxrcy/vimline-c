@@ -43,13 +43,6 @@ uint32_t BOX_X = 0;
 enum VimMode MODE = MODE_NORMAL;
 uint32_t VISUAL_START = 0;
 
-State STATE = {
-    .input = "abc def ghi jkl lmn opq rst uvw xyz",
-    .input_len = 9 * 3 + 8,
-    .cursor = 0,
-    .offset = 0,
-};
-
 const uint32_t CURSOR_LEFT = 5;
 const uint32_t CURSOR_RIGHT = 1;
 const uint32_t MAX_INPUT_WIDTH = 70;
@@ -124,36 +117,36 @@ void draw_box_outline(
     addch(ACS_LRCORNER);
 }
 
-int find_word_start(bool full_word) {
+int find_word_start(State* state, bool full_word) {
     // Empty line
-    if (STATE.input_len < 1) {
+    if (state->input_len < 1) {
         return 0;
     }
     // At end of line
-    if (STATE.cursor + 1 >= STATE.input_len) {
-        return STATE.input_len - 1;
+    if (state->cursor + 1 >= state->input_len) {
+        return state->input_len - 1;
     }
     // On a space
     // Look for first non-space character
-    if (isspace(STATE.input[STATE.cursor])) {
-        while (STATE.cursor + 1 < STATE.input_len) {
-            ++STATE.cursor;
-            if (!isspace(STATE.input[STATE.cursor])) {
-                return STATE.cursor;
+    if (isspace(state->input[state->cursor])) {
+        while (state->cursor + 1 < state->input_len) {
+            ++state->cursor;
+            if (!isspace(state->input[state->cursor])) {
+                return state->cursor;
             }
         }
     }
     // On non-space
-    int alnum = isalnum(STATE.input[STATE.cursor]);
-    while (STATE.cursor < STATE.input_len - 1) {
-        ++STATE.cursor;
+    int alnum = isalnum(state->input[state->cursor]);
+    while (state->cursor < state->input_len - 1) {
+        ++state->cursor;
         // Space found
         // Look for first non-space character
-        if (isspace(STATE.input[STATE.cursor])) {
-            while (STATE.cursor + 1 < STATE.input_len) {
-                ++STATE.cursor;
-                if (!isspace(STATE.input[STATE.cursor])) {
-                    return STATE.cursor;
+        if (isspace(state->input[state->cursor])) {
+            while (state->cursor + 1 < state->input_len) {
+                ++state->cursor;
+                if (!isspace(state->input[state->cursor])) {
+                    return state->cursor;
                 }
             }
             break;
@@ -161,74 +154,74 @@ int find_word_start(bool full_word) {
         // First punctuation after word
         // OR first word after punctuation
         // (If distinguishing words and punctuation)
-        if (!full_word && isalnum(STATE.input[STATE.cursor]) != alnum) {
-            return STATE.cursor;
+        if (!full_word && isalnum(state->input[state->cursor]) != alnum) {
+            return state->cursor;
         }
     }
     // No next word found
     // Go to end of line
-    return STATE.input_len - 1;
+    return state->input_len - 1;
 }
 
-int find_word_end(bool full_word) {
+int find_word_end(State* state, bool full_word) {
     // Empty line
-    if (STATE.input_len < 1) {
+    if (state->input_len < 1) {
         return 0;
     }
     // At end of line
-    if (STATE.cursor + 1 >= STATE.input_len) {
-        return STATE.input_len - 1;
+    if (state->cursor + 1 >= state->input_len) {
+        return state->input_len - 1;
     }
-    ++STATE.cursor;  // Always move at least one character
+    ++state->cursor;  // Always move at least one character
     // On a sequence of spaces (>=1)
     // Look for start of next word, start from there instead
-    while (STATE.cursor + 1 < STATE.input_len &&
-           isspace(STATE.input[STATE.cursor])) {
-        ++STATE.cursor;
+    while (state->cursor + 1 < state->input_len &&
+           isspace(state->input[state->cursor])) {
+        ++state->cursor;
     }
     // On non-space
-    int alnum = isalnum(STATE.input[STATE.cursor]);
-    while (STATE.cursor < STATE.input_len) {
-        ++STATE.cursor;
+    int alnum = isalnum(state->input[state->cursor]);
+    while (state->cursor < state->input_len) {
+        ++state->cursor;
         // Space found
         // Word ends at previous index
         // OR first punctuation after word
         // OR first word after punctuation
         // (If distinguishing words and punctuation)
-        if (isspace(STATE.input[STATE.cursor]) ||
-            (!full_word && isalnum(STATE.input[STATE.cursor]) != alnum)) {
-            return STATE.cursor - 1;
+        if (isspace(state->input[state->cursor]) ||
+            (!full_word && isalnum(state->input[state->cursor]) != alnum)) {
+            return state->cursor - 1;
         }
     }
     // No next word found
     // Go to end of line
-    return STATE.input_len - 1;
+    return state->input_len - 1;
 }
 
-int find_word_back(bool full_word) {
+int find_word_back(State* state, bool full_word) {
     // At start of line
-    if (STATE.cursor <= 1) {
+    if (state->cursor <= 1) {
         return 0;
     }
     // Start at previous character
-    --STATE.cursor;
+    --state->cursor;
     // On a sequence of spaces (>=1)
     // Look for end of previous word, start from there instead
-    while (STATE.cursor > 0 && isspace(STATE.input[STATE.cursor])) {
-        --STATE.cursor;
+    while (state->cursor > 0 && isspace(state->input[state->cursor])) {
+        --state->cursor;
     }
     // Now on a non-space
-    int alnum = isalnum(STATE.input[STATE.cursor]);
-    while (STATE.cursor > 0) {
-        STATE.cursor--;
+    int alnum = isalnum(state->input[state->cursor]);
+    while (state->cursor > 0) {
+        state->cursor--;
         // Space found
         // OR first punctuation before word
         // OR first word before punctuation
         // Word starts at next index
         // (If distinguishing words and punctuation)
-        if (isspace(STATE.input[STATE.cursor]) ||
-            (!full_word && isalnum(STATE.input[STATE.cursor]) != alnum)) {
-            return STATE.cursor + 1;
+        if (isspace(state->input[state->cursor]) ||
+            (!full_word && isalnum(state->input[state->cursor]) != alnum)) {
+            return state->cursor + 1;
         }
     }
     // No previous word found
@@ -252,14 +245,14 @@ void copy_state(const State* const src, State* const dest) {
     memcpy(dest, src, sizeof(State));
 }
 
-void push_history(History* history) {
+void push_history(State* state, History* history) {
     // Delete all future history to be overwritten
     if (history->index <= history->len) {
         history->len = history->index;
     }
     // Ignore if same as last entry
     if (history->len > 0 &&
-        equals_state_input(&STATE, &history->states[history->len - 1])) {
+        equals_state_input(state, &history->states[history->len - 1])) {
         return;
     }
     if (history->len >= MAX_HISTORY) {
@@ -271,29 +264,29 @@ void push_history(History* history) {
         ++history->index;
     }
 
-    copy_state(&STATE, &history->states[history->index - 1]);
+    copy_state(state, &history->states[history->index - 1]);
 }
 
-void undo_history(History* history) {
+void undo_history(State* state, History* history) {
     if (history->len == 0 || history->index <= 0) {
         return;
     }
     --history->index;
-    copy_state(&history->states[history->index], &STATE);
+    copy_state(&history->states[history->index], state);
 }
-void redo_history(History* history) {
+void redo_history(State* state, History* history) {
     if (history->index + 1 >= history->len) {
         return;
     }
     ++history->index;
-    copy_state(&history->states[history->index], &STATE);
+    copy_state(&history->states[history->index], state);
 }
 
-void save_input(const char* const filename) {
+void save_input(State* state, const char* const filename) {
     // If no output file is specified, print instead
     if (filename == NULL) {
-        for (uint32_t i = 0; i < STATE.input_len; ++i) {
-            printf("%c", STATE.input[i]);
+        for (uint32_t i = 0; i < state->input_len; ++i) {
+            printf("%c", state->input[i]);
         }
         printf("\n");
         return;
@@ -305,8 +298,8 @@ void save_input(const char* const filename) {
         exit(1);
     }
 
-    for (uint32_t i = 0; i < STATE.input_len; ++i) {
-        if (fprintf(file, "%c", STATE.input[i]) < 1) {
+    for (uint32_t i = 0; i < state->input_len; ++i) {
+        if (fprintf(file, "%c", state->input[i]) < 1) {
             perror("Failed to write file");
             exit(1);
         }
@@ -323,25 +316,25 @@ void terminate() {
     exit(0);
 }
 
-void update_offset_left() {
-    if (STATE.cursor < STATE.offset + CURSOR_LEFT) {
-        STATE.offset = subsat(STATE.cursor, CURSOR_LEFT);
+void update_offset_left(State* state) {
+    if (state->cursor < state->offset + CURSOR_LEFT) {
+        state->offset = subsat(state->cursor, CURSOR_LEFT);
     }
 }
-void update_offset_right() {
-    if (STATE.cursor + CURSOR_RIGHT > INPUT_WIDTH) {
-        STATE.offset = subsat(STATE.cursor + CURSOR_RIGHT, INPUT_WIDTH);
+void update_offset_right(State* state) {
+    if (state->cursor + CURSOR_RIGHT > INPUT_WIDTH) {
+        state->offset = subsat(state->cursor + CURSOR_RIGHT, INPUT_WIDTH);
     }
 }
 
-bool in_visual_select(uint32_t index) {
-    if (STATE.cursor == VISUAL_START) {
+bool in_visual_select(State* state, uint32_t index) {
+    if (state->cursor == VISUAL_START) {
         return index == VISUAL_START;
     }
-    if (STATE.cursor < VISUAL_START) {
-        return index >= STATE.cursor && index <= VISUAL_START;
+    if (state->cursor < VISUAL_START) {
+        return index >= state->cursor && index <= VISUAL_START;
     }
-    return index >= VISUAL_START && index <= STATE.cursor;
+    return index >= VISUAL_START && index <= state->cursor;
 }
 
 int main(const int argc, const char* const* const argv) {
@@ -365,6 +358,12 @@ int main(const int argc, const char* const* const argv) {
         .len = 0,
         .index = 0,
     };
+    State state = {
+        .input = "abc def ghi jkl lmn opq rst uvw xyz",
+        .input_len = 9 * 3 + 8,
+        .cursor = 0,
+        .offset = 0,
+    };
 
     initscr();
     noecho();              // Disable echoing
@@ -384,7 +383,7 @@ int main(const int argc, const char* const* const argv) {
     const int attr_details = COLOR_PAIR(2) | A_DIM;
     const int attr_visual = COLOR_PAIR(3);
 
-    push_history(&history);
+    push_history(&state, &history);
 
     int key = 0;
 
@@ -403,19 +402,19 @@ int main(const int argc, const char* const* const argv) {
             BOX_X,
             BOX_Y,
             INPUT_WIDTH + 2,
-            STATE.offset > 0,
-            STATE.offset + INPUT_WIDTH < STATE.input_len
+            state.offset > 0,
+            state.offset + INPUT_WIDTH < state.input_len
         );
         attroff(attr_box);
 
         move(BOX_Y + 1, BOX_X + 1);
         for (uint32_t i = 0; i < INPUT_WIDTH; ++i) {
-            uint32_t index = i + STATE.offset;
-            if (index < STATE.input_len) {
-                if (MODE == MODE_VISUAL && in_visual_select(index)) {
+            uint32_t index = i + state.offset;
+            if (index < state.input_len) {
+                if (MODE == MODE_VISUAL && in_visual_select(&state, index)) {
                     attron(attr_visual);
                 }
-                printw("%c", STATE.input[index]);
+                printw("%c", state.input[index]);
                 attroff(attr_visual);
             } else {
                 printw(" ");
@@ -425,13 +424,13 @@ int main(const int argc, const char* const* const argv) {
         move(max_rows - 1, 0);
         attron(attr_details);
         printw("%8s", mode_name(MODE));
-        printw(" [%3d /%3d]", STATE.cursor, STATE.input_len);
+        printw(" [%3d /%3d]", state.cursor, state.input_len);
         printw(" [%3d /%3d]", history.index, history.len);
         printw(" 0x%02x", key);
         attroff(attr_details);
 
         set_cursor(MODE);
-        move(BOX_Y + 1, BOX_X + subsat(STATE.cursor, STATE.offset) + 1);
+        move(BOX_Y + 1, BOX_X + subsat(state.cursor, state.offset) + 1);
 
         refresh();
 
@@ -447,7 +446,7 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     case K_RETURN:
                         endwin();
-                        save_input(filename);
+                        save_input(&state, filename);
                         exit(0);
                         break;
                     case 'r':
@@ -455,114 +454,114 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     case 'v':
                         MODE = MODE_VISUAL;
-                        VISUAL_START = STATE.cursor;
+                        VISUAL_START = state.cursor;
                         break;
                     case 'V':
                         MODE = MODE_VISUAL;
                         VISUAL_START = 0;
-                        STATE.cursor = STATE.input_len - 1;
+                        state.cursor = state.input_len - 1;
                         break;
                     case 'i':
                         MODE = MODE_INSERT;
                         break;
                     case 'a':
                         MODE = MODE_INSERT;
-                        if (STATE.cursor < STATE.input_len) {
-                            ++STATE.cursor;
+                        if (state.cursor < state.input_len) {
+                            ++state.cursor;
                         }
                         break;
                     case 'I':
                         MODE = MODE_INSERT;
-                        STATE.cursor = 0;
-                        STATE.offset = 0;
+                        state.cursor = 0;
+                        state.offset = 0;
                         break;
                     case 'A':
                         MODE = MODE_INSERT;
-                        STATE.cursor = STATE.input_len;
-                        STATE.offset = subsat(STATE.cursor + 1, INPUT_WIDTH);
+                        state.cursor = state.input_len;
+                        state.offset = subsat(state.cursor + 1, INPUT_WIDTH);
                         break;
                     case 'h':
                     case KEY_LEFT:
-                        if (STATE.cursor > 0) {
-                            --STATE.cursor;
-                            update_offset_left();
+                        if (state.cursor > 0) {
+                            --state.cursor;
+                            update_offset_left(&state);
                         }
                         break;
                     case 'l':
                     case KEY_RIGHT:
-                        if (STATE.cursor < MAX_INPUT - 1 &&
-                            STATE.cursor < STATE.input_len - 1) {
-                            ++STATE.cursor;
-                            update_offset_right();
+                        if (state.cursor < MAX_INPUT - 1 &&
+                            state.cursor < state.input_len - 1) {
+                            ++state.cursor;
+                            update_offset_right(&state);
                         }
                         break;
                     case 'w':
-                        STATE.cursor = find_word_start(FALSE);
-                        update_offset_right();
+                        state.cursor = find_word_start(&state, FALSE);
+                        update_offset_right(&state);
                         break;
                     case 'e':
-                        STATE.cursor = find_word_end(FALSE);
-                        update_offset_right();
+                        state.cursor = find_word_end(&state, FALSE);
+                        update_offset_right(&state);
                         break;
                     case 'b':
-                        STATE.cursor = find_word_back(FALSE);
-                        update_offset_left();
+                        state.cursor = find_word_back(&state, FALSE);
+                        update_offset_left(&state);
                         break;
                     case 'W':
-                        STATE.cursor = find_word_start(TRUE);
-                        update_offset_right();
+                        state.cursor = find_word_start(&state, TRUE);
+                        update_offset_right(&state);
                         break;
                     case 'E':
-                        STATE.cursor = find_word_end(TRUE);
-                        update_offset_right();
+                        state.cursor = find_word_end(&state, TRUE);
+                        update_offset_right(&state);
                         break;
                     case 'B':
-                        STATE.cursor = find_word_back(TRUE);
-                        update_offset_left();
+                        state.cursor = find_word_back(&state, TRUE);
+                        update_offset_left(&state);
                         break;
                     case '^':
                     case '_':
-                        for (STATE.cursor = 0; STATE.cursor < STATE.input_len;
-                             ++STATE.cursor) {
-                            if (!isspace(STATE.input[STATE.cursor])) {
+                        for (state.cursor = 0; state.cursor < state.input_len;
+                             ++state.cursor) {
+                            if (!isspace(state.input[state.cursor])) {
                                 break;
                             }
                         }
-                        update_offset_left();
+                        update_offset_left(&state);
                         break;
                     case '0':
-                        STATE.cursor = 0;
-                        STATE.offset = 0;
+                        state.cursor = 0;
+                        state.offset = 0;
                         break;
                     case '$':
-                        STATE.cursor = STATE.input_len - 1;
-                        STATE.offset = subsat(STATE.cursor + 2, INPUT_WIDTH);
+                        state.cursor = state.input_len - 1;
+                        state.offset = subsat(state.cursor + 2, INPUT_WIDTH);
                         break;
                     case 'D':
-                        STATE.input_len = STATE.cursor;
-                        push_history(&history);
+                        state.input_len = state.cursor;
+                        push_history(&state, &history);
                         break;
                     case 'x':
-                        if (STATE.input_len > 0) {
-                            for (uint32_t i = STATE.cursor + 1;
-                                 i < STATE.input_len;
+                        if (state.input_len > 0) {
+                            for (uint32_t i = state.cursor + 1;
+                                 i < state.input_len;
                                  ++i) {
-                                STATE.input[i - 1] = STATE.input[i];
+                                state.input[i - 1] = state.input[i];
                             }
-                            --STATE.input_len;
-                            if (STATE.cursor >= STATE.input_len &&
-                                STATE.input_len > 0) {
-                                STATE.cursor = STATE.input_len - 1;
+                            --state.input_len;
+                            if (state.cursor >= state.input_len &&
+                                state.input_len > 0) {
+                                state.cursor = state.input_len - 1;
                             }
-                            update_offset_left();
-                            push_history(&history);
+                            update_offset_left(&state);
+                            push_history(&state, &history);
                         }
                         break;
                     case 'u':
-                        undo_history(&history);
+                        undo_history(&state, &history);
                         break;
                     case CTRL('r'):
-                        redo_history(&history);
+                        redo_history(&state, &history);
                         break;
                     default:
                         break;
@@ -573,55 +572,55 @@ int main(const int argc, const char* const* const argv) {
                 switch (key) {
                     case K_ESCAPE:
                         MODE = MODE_NORMAL;
-                        if (STATE.cursor > 0) {
-                            --STATE.cursor;
+                        if (state.cursor > 0) {
+                            --state.cursor;
                         }
-                        push_history(&history);
+                        push_history(&state, &history);
                         break;
                     case K_RETURN:
                         endwin();
-                        save_input(filename);
+                        save_input(&state, filename);
                         exit(0);
                         break;
                     case K_LEFT:
-                        if (STATE.cursor > 0) {
-                            --STATE.cursor;
-                            update_offset_left();
+                        if (state.cursor > 0) {
+                            --state.cursor;
+                            update_offset_left(&state);
                         }
                         break;
                     case K_RIGHT:
-                        if (STATE.cursor < MAX_INPUT &&
-                            STATE.cursor < STATE.input_len) {
-                            ++STATE.cursor;
-                            update_offset_right();
+                        if (state.cursor < MAX_INPUT &&
+                            state.cursor < state.input_len) {
+                            ++state.cursor;
+                            update_offset_right(&state);
                         }
                         break;
                     case K_BACKSPACE:
-                        if (STATE.cursor > 0 && STATE.input_len > 0) {
-                            for (uint32_t i = STATE.cursor; i < STATE.input_len;
+                        if (state.cursor > 0 && state.input_len > 0) {
+                            for (uint32_t i = state.cursor; i < state.input_len;
                                  ++i) {
-                                STATE.input[i - 1] = STATE.input[i];
+                                state.input[i - 1] = state.input[i];
                             }
-                            for (uint32_t i = STATE.input_len; i < MAX_INPUT;
+                            for (uint32_t i = state.input_len; i < MAX_INPUT;
                                  ++i) {
-                                STATE.input[i] = '.';
+                                state.input[i] = '.';
                             }
-                            --STATE.input_len;
-                            --STATE.cursor;
-                            update_offset_left();
+                            --state.input_len;
+                            --state.cursor;
+                            update_offset_left(&state);
                         }
                         break;
                     default:
-                        if (isprint(key) && STATE.input_len < MAX_INPUT) {
-                            for (uint32_t i = STATE.input_len;
-                                 i >= STATE.cursor + 1;
+                        if (isprint(key) && state.input_len < MAX_INPUT) {
+                            for (uint32_t i = state.input_len;
+                                 i >= state.cursor + 1;
                                  --i) {
-                                STATE.input[i] = STATE.input[i - 1];
+                                state.input[i] = state.input[i - 1];
                             }
-                            STATE.input[STATE.cursor] = key;
-                            ++STATE.cursor;
-                            ++STATE.input_len;
-                            update_offset_right();
+                            state.input[state.cursor] = key;
+                            ++state.cursor;
+                            ++state.input_len;
+                            update_offset_right(&state);
                         }
                         break;
                 };
@@ -634,119 +633,119 @@ int main(const int argc, const char* const* const argv) {
                         break;
                     default:
                         if (isprint(key)) {
-                            STATE.input[STATE.cursor] = key;
+                            state.input[state.cursor] = key;
                             MODE = MODE_NORMAL;
-                            push_history(&history);
+                            push_history(&state, &history);
                         }
                         break;
                 }
                 break;
 
             case MODE_VISUAL: {
-                uint32_t start = min(STATE.cursor, VISUAL_START);
-                uint32_t size = difference(STATE.cursor, VISUAL_START) + 1;
+                uint32_t start = min(state.cursor, VISUAL_START);
+                uint32_t size = difference(state.cursor, VISUAL_START) + 1;
                 switch (key) {
                     case K_ESCAPE:
                         MODE = MODE_NORMAL;
                         break;
                     case 'h':
                     case KEY_LEFT:
-                        if (STATE.cursor > 0) {
-                            --STATE.cursor;
-                            update_offset_left();
+                        if (state.cursor > 0) {
+                            --state.cursor;
+                            update_offset_left(&state);
                         }
                         break;
                     case 'l':
                     case KEY_RIGHT:
-                        if (STATE.cursor < MAX_INPUT - 1 &&
-                            STATE.cursor < STATE.input_len - 1) {
-                            ++STATE.cursor;
-                            update_offset_right();
+                        if (state.cursor < MAX_INPUT - 1 &&
+                            state.cursor < state.input_len - 1) {
+                            ++state.cursor;
+                            update_offset_right(&state);
                         }
                         break;
                     case 'w':
-                        STATE.cursor = find_word_start(FALSE);
-                        update_offset_right();
+                        state.cursor = find_word_start(&state, FALSE);
+                        update_offset_right(&state);
                         break;
                     case 'e':
-                        STATE.cursor = find_word_end(FALSE);
-                        update_offset_right();
+                        state.cursor = find_word_end(&state, FALSE);
+                        update_offset_right(&state);
                         break;
                     case 'b':
-                        STATE.cursor = find_word_back(FALSE);
-                        update_offset_left();
+                        state.cursor = find_word_back(&state, FALSE);
+                        update_offset_left(&state);
                         break;
                     case 'W':
-                        STATE.cursor = find_word_start(TRUE);
-                        update_offset_right();
+                        state.cursor = find_word_start(&state, TRUE);
+                        update_offset_right(&state);
                         break;
                     case 'E':
-                        STATE.cursor = find_word_end(TRUE);
-                        update_offset_right();
+                        state.cursor = find_word_end(&state, TRUE);
+                        update_offset_right(&state);
                         break;
                     case 'B':
-                        STATE.cursor = find_word_back(TRUE);
-                        update_offset_left();
+                        state.cursor = find_word_back(&state, TRUE);
+                        update_offset_left(&state);
                         break;
                     case '^':
                     case '_':
-                        for (STATE.cursor = 0; STATE.cursor < STATE.input_len;
-                             ++STATE.cursor) {
-                            if (!isspace(STATE.input[STATE.cursor])) {
+                        for (state.cursor = 0; state.cursor < state.input_len;
+                             ++state.cursor) {
+                            if (!isspace(state.input[state.cursor])) {
                                 break;
                             }
                         }
-                        update_offset_left();
+                        update_offset_left(&state);
                         break;
                     case '0':
-                        STATE.cursor = 0;
-                        STATE.offset = 0;
+                        state.cursor = 0;
+                        state.offset = 0;
                         break;
                     case '$':
-                        STATE.cursor = STATE.input_len - 1;
-                        STATE.offset = subsat(STATE.cursor + 2, INPUT_WIDTH);
+                        state.cursor = state.input_len - 1;
+                        state.offset = subsat(state.cursor + 2, INPUT_WIDTH);
                         break;
                     case 'd':
                     case 'x': {
-                        for (uint32_t i = start; i <= STATE.input_len - size;
+                        for (uint32_t i = start; i <= state.input_len - size;
                              ++i) {
                             uint32_t new = i + size;
-                            if (new >= STATE.input_len) {
+                            if (new >= state.input_len) {
                                 break;
                             }
-                            STATE.input[i] = STATE.input[new];
+                            state.input[i] = state.input[new];
                         }
-                        STATE.input_len -= size;
-                        if (STATE.cursor > VISUAL_START) {
-                            STATE.cursor -= size - 1;
+                        state.input_len -= size;
+                        if (state.cursor > VISUAL_START) {
+                            state.cursor -= size - 1;
                         }
-                        if (STATE.cursor + 1 >= STATE.input_len) {
-                            STATE.cursor = subsat(STATE.input_len, 1);
+                        if (state.cursor + 1 >= state.input_len) {
+                            state.cursor = subsat(state.input_len, 1);
                         }
                         MODE = MODE_NORMAL;
-                        push_history(&history);
+                        push_history(&state, &history);
                     } break;
                     case 'u': {
                         for (uint32_t i = 0; i < size; ++i) {
-                            STATE.input[start + i] =
-                                tolower(STATE.input[start + i]);
+                            state.input[start + i] =
+                                tolower(state.input[start + i]);
                         }
-                        if (STATE.cursor > VISUAL_START) {
-                            STATE.cursor -= size - 1;
+                        if (state.cursor > VISUAL_START) {
+                            state.cursor -= size - 1;
                         }
                         MODE = MODE_NORMAL;
-                        push_history(&history);
+                        push_history(&state, &history);
                     }; break;
                     case 'U': {
                         for (uint32_t i = 0; i < size; ++i) {
-                            STATE.input[start + i] =
-                                toupper(STATE.input[start + i]);
+                            state.input[start + i] =
+                                toupper(state.input[start + i]);
                         }
-                        if (STATE.cursor > VISUAL_START) {
-                            STATE.cursor -= size - 1;
+                        if (state.cursor > VISUAL_START) {
+                            state.cursor -= size - 1;
                         }
                         MODE = MODE_NORMAL;
-                        push_history(&history);
+                        push_history(&state, &history);
                     }; break;
                     default:
                         break;
