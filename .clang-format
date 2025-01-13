@@ -1,17 +1,129 @@
----
-Language: Cpp
-BasedOnStyle: Google
-
 IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4
+PPIndentWidth: -1
 
+ColumnLimit: 80
+LineEnding: LF
+
+AlignAfterOpenBracket: BlockIndent
+AlignArrayOfStructures: Left
+AlignEscapedNewlines: Left
+AlignTrailingComments: Always
+
+AlignConsecutiveAssignments: None
+AlignConsecutiveBitFields: Consecutive
+AlignConsecutiveDeclarations: None
+AlignConsecutiveMacros: None
+
+AllowShortBlocksOnASingleLine: Never
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortEnumsOnASingleLine: true
+AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: false
+AllowShortLambdasOnASingleLine: None
 AllowShortLoopsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: false
+
+AlwaysBreakBeforeMultilineStrings: false
+BreakAdjacentStringLiterals: true
+BreakStringLiterals: true
 
 BinPackArguments: false
 BinPackParameters: false
+PackConstructorInitializers: Never
 
-AlignAfterOpenBracket: BlockIndent
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Attach
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+BreakFunctionDefinitionParameters: false
+BreakTemplateDeclarations: Yes
+
+CompactNamespaces: false
+FixNamespaceComments: true
+NamespaceIndentation: All
+
+EmptyLineAfterAccessModifier: Never
+EmptyLineBeforeAccessModifier: Leave
+
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+SortUsingDeclarations: Lexicographic
+
+IndentAccessModifiers: false
+IndentCaseBlocks: false
+IndentCaseLabels: true
+IndentGotoLabels: false
+IndentPPDirectives: BeforeHash
+IndentRequiresClause: true
+IndentWrappedFunctionNames: true
+LambdaBodyIndentation: Signature
+
+InsertBraces: true
+InsertNewlineAtEOF: false
+
+KeepEmptyLines:
+  AtEndOfFile: false
+  AtStartOfBlock: false
+  AtStartOfFile: false
+
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Always
+
+IntegerLiteralSeparator:
+  Binary: 4
+  Decimal: 3
+  Hex: 4
+  BinaryMinDigits: 5
+  DecimalMinDigits: 5
+  HexMinDigits: 5
 
 PointerAlignment: Right
+ReferenceAlignment: Pointer
+
+QualifierAlignment: Custom
+QualifierOrder: [inline, static, constexpr, const, type]
+
+RemoveParentheses: ReturnStatement
+RemoveSemicolon: true
+
+BitFieldColonSpacing: Both
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: false
+SpaceAroundPointerQualifiers: Default
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: true
+SpacesBeforeTrailingComments: 2
+SpacesInAngles: false
+SpacesInParens: Never
+SpacesInSquareBrackets: false
+
+SpaceBeforeParens: Custom
+SpaceBeforeParensOptions:
+  AfterControlStatements: true
+  AfterForeachMacros: true
+  AfterFunctionDeclarationName: false
+  AfterFunctionDefinitionName: false
+  AfterIfMacros: true
+  BeforeNonEmptyParentheses: false
+
+ReflowComments: true
+SpacesInLineCommentPrefix:
+  Minimum: 1
+  Maximum: -1
+
+# clang-format 20:
+# AllowShortNamespacesOnASingleLine: false
+# BreakBinaryOperations: Never
+# RemoveEmptyLinesInUnwrappedLines: true
+# WrapNamespaceBodyWithEmptyLines: Always
+
 

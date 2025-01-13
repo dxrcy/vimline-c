@@ -41,7 +41,7 @@ typedef struct State {
     Snap snap;
     uint32_t visual_start;
     History history;
-    const char* filename;
+    const char *filename;
 } State;
 
 static struct {
@@ -68,12 +68,14 @@ uint32_t subsat(const uint32_t lhs, const uint32_t rhs) {
     }
     return lhs - rhs;
 }
+
 uint32_t min(const uint32_t lhs, const uint32_t rhs) {
     if (rhs >= lhs) {
         return lhs;
     }
     return rhs;
 }
+
 uint32_t difference(const uint32_t lhs, const uint32_t rhs) {
     if (lhs >= rhs) {
         return lhs - rhs;
@@ -81,7 +83,7 @@ uint32_t difference(const uint32_t lhs, const uint32_t rhs) {
     return rhs - lhs;
 }
 
-const char* mode_name(enum VimMode mode) {
+const char *mode_name(enum VimMode mode) {
     switch (mode) {
         case MODE_NORMAL:
             return "NORMAL";
@@ -141,7 +143,7 @@ void draw_box_outline(
     addch(ACS_LRCORNER);
 }
 
-int find_word_start(Snap* const snap, const bool full_word) {
+int find_word_start(Snap *const snap, const bool full_word) {
     // Empty line
     if (snap->input_len < 1) {
         return 0;
@@ -187,7 +189,7 @@ int find_word_start(Snap* const snap, const bool full_word) {
     return snap->input_len - 1;
 }
 
-int find_word_end(Snap* const snap, const bool full_word) {
+int find_word_end(Snap *const snap, const bool full_word) {
     // Empty line
     if (snap->input_len < 1) {
         return 0;
@@ -199,8 +201,8 @@ int find_word_end(Snap* const snap, const bool full_word) {
     ++snap->cursor;  // Always move at least one character
     // On a sequence of spaces (>=1)
     // Look for start of next word, start from there instead
-    while (snap->cursor + 1 < snap->input_len &&
-           isspace(snap->input[snap->cursor])) {
+    while (snap->cursor + 1 < snap->input_len
+           && isspace(snap->input[snap->cursor])) {
         ++snap->cursor;
     }
     // On non-space
@@ -212,8 +214,8 @@ int find_word_end(Snap* const snap, const bool full_word) {
         // OR first punctuation after word
         // OR first word after punctuation
         // (If distinguishing words and punctuation)
-        if (isspace(snap->input[snap->cursor]) ||
-            (!full_word && isalnum(snap->input[snap->cursor]) != alnum)) {
+        if (isspace(snap->input[snap->cursor])
+            || (!full_word && isalnum(snap->input[snap->cursor]) != alnum)) {
             return snap->cursor - 1;
         }
     }
@@ -222,7 +224,7 @@ int find_word_end(Snap* const snap, const bool full_word) {
     return snap->input_len - 1;
 }
 
-int find_word_back(Snap* const snap, const bool full_word) {
+int find_word_back(Snap *const snap, const bool full_word) {
     // At start of line
     if (snap->cursor <= 1) {
         return 0;
@@ -243,8 +245,8 @@ int find_word_back(Snap* const snap, const bool full_word) {
         // OR first word before punctuation
         // Word starts at next index
         // (If distinguishing words and punctuation)
-        if (isspace(snap->input[snap->cursor]) ||
-            (!full_word && isalnum(snap->input[snap->cursor]) != alnum)) {
+        if (isspace(snap->input[snap->cursor])
+            || (!full_word && isalnum(snap->input[snap->cursor]) != alnum)) {
             return snap->cursor + 1;
         }
     }
@@ -253,7 +255,7 @@ int find_word_back(Snap* const snap, const bool full_word) {
     return 0;
 }
 
-bool equals_snap_input(const Snap* const a, const Snap* const b) {
+bool equals_snap_input(const Snap *const a, const Snap *const b) {
     if (a->input_len != b->input_len) {
         return false;
     }
@@ -265,18 +267,18 @@ bool equals_snap_input(const Snap* const a, const Snap* const b) {
     return true;
 }
 
-void copy_snap(const Snap* const src, Snap* const dest) {
+void copy_snap(const Snap *const src, Snap *const dest) {
     memcpy(dest, src, sizeof(Snap));
 }
 
-void push_history(State* const state) {
+void push_history(State *const state) {
     // Delete all future history to be overwritten
     if (state->history.index <= state->history.len) {
         state->history.len = state->history.index;
     }
     // Ignore if same as last entry
-    if (state->history.len > 0 &&
-        equals_snap_input(
+    if (state->history.len > 0
+        && equals_snap_input(
             &state->snap, &state->history.snaps[state->history.len - 1]
         )) {
         return;
@@ -293,14 +295,15 @@ void push_history(State* const state) {
     copy_snap(&state->snap, &state->history.snaps[state->history.index - 1]);
 }
 
-void undo_history(State* const state) {
+void undo_history(State *const state) {
     if (state->history.len == 0 || state->history.index <= 0) {
         return;
     }
     --state->history.index;
     copy_snap(&state->history.snaps[state->history.index], &state->snap);
 }
-void redo_history(State* const state) {
+
+void redo_history(State *const state) {
     if (state->history.index + 1 >= state->history.len) {
         return;
     }
@@ -308,7 +311,7 @@ void redo_history(State* const state) {
     copy_snap(&state->history.snaps[state->history.index], &state->snap);
 }
 
-void save_input(const State* const state) {
+void save_input(const State *const state) {
     // If no output file is specified, print instead
     if (state->filename == NULL) {
         for (uint32_t i = 0; i < state->snap.input_len; ++i) {
@@ -318,7 +321,7 @@ void save_input(const State* const state) {
         return;
     }
 
-    FILE* file = fopen(state->filename, "w");
+    FILE *file = fopen(state->filename, "w");
     if (file == NULL) {
         perror("Failed to open file");
         exit(1);
@@ -342,18 +345,19 @@ void terminate() {
     exit(0);
 }
 
-void update_offset_left(Snap* const snap) {
+void update_offset_left(Snap *const snap) {
     if (snap->cursor < snap->offset + CURSOR_LEFT) {
         snap->offset = subsat(snap->cursor, CURSOR_LEFT);
     }
 }
-void update_offset_right(Snap* const snap, const uint32_t width) {
+
+void update_offset_right(Snap *const snap, const uint32_t width) {
     if (snap->cursor + CURSOR_RIGHT > width) {
         snap->offset = subsat(snap->cursor + CURSOR_RIGHT, width);
     }
 }
 
-bool in_visual_select(const State* const state, const uint32_t index) {
+bool in_visual_select(const State *const state, const uint32_t index) {
     if (state->snap.cursor == state->visual_start) {
         return index == state->visual_start;
     }
@@ -363,7 +367,7 @@ bool in_visual_select(const State* const state, const uint32_t index) {
     return index >= state->visual_start && index <= state->snap.cursor;
 }
 
-void frame(State* const state, int* const key) {
+void frame(State *const state, int *const key) {
     clear();
 
     int max_rows = getmaxy(stdscr);
@@ -465,8 +469,8 @@ void frame(State* const state, int* const key) {
                     break;
                 case 'l':
                 case KEY_RIGHT:
-                    if (state->snap.cursor < MAX_INPUT - 1 &&
-                        state->snap.cursor < state->snap.input_len - 1) {
+                    if (state->snap.cursor < MAX_INPUT - 1
+                        && state->snap.cursor < state->snap.input_len - 1) {
                         ++state->snap.cursor;
                         update_offset_right(&state->snap, input_box.width);
                     }
@@ -527,8 +531,8 @@ void frame(State* const state, int* const key) {
                             state->snap.input[i - 1] = state->snap.input[i];
                         }
                         --state->snap.input_len;
-                        if (state->snap.cursor >= state->snap.input_len &&
-                            state->snap.input_len > 0) {
+                        if (state->snap.cursor >= state->snap.input_len
+                            && state->snap.input_len > 0) {
                             state->snap.cursor = state->snap.input_len - 1;
                         }
                         update_offset_left(&state->snap);
@@ -567,8 +571,8 @@ void frame(State* const state, int* const key) {
                     }
                     break;
                 case K_RIGHT:
-                    if (state->snap.cursor < MAX_INPUT &&
-                        state->snap.cursor < state->snap.input_len) {
+                    if (state->snap.cursor < MAX_INPUT
+                        && state->snap.cursor < state->snap.input_len) {
                         ++state->snap.cursor;
                         update_offset_right(&state->snap, input_box.width);
                     }
@@ -637,8 +641,8 @@ void frame(State* const state, int* const key) {
                     break;
                 case 'l':
                 case KEY_RIGHT:
-                    if (state->snap.cursor < MAX_INPUT - 1 &&
-                        state->snap.cursor < state->snap.input_len - 1) {
+                    if (state->snap.cursor < MAX_INPUT - 1
+                        && state->snap.cursor < state->snap.input_len - 1) {
                         ++state->snap.cursor;
                         update_offset_right(&state->snap, input_box.width);
                     }
@@ -736,7 +740,7 @@ void frame(State* const state, int* const key) {
     }
 }
 
-int main(const int argc, const char* const* const argv) {
+int main(const int argc, const char *const *const argv) {
     if (argc > 2 || (argc > 1 && argv[1][0] == '-')) {
         fprintf(
             stderr,
@@ -754,18 +758,18 @@ int main(const int argc, const char* const* const argv) {
         .mode = MODE_NORMAL,
         .snap =
             {
-                .input = "abc def ghi jkl lmn opq rst uvw xyz",
-                .input_len = 9 * 3 + 8,
-                .cursor = 0,
-                .offset = 0,
-            },
+                   .input = "abc def ghi jkl lmn opq rst uvw xyz",
+                   .input_len = 9 * 3 + 8,
+                   .cursor = 0,
+                   .offset = 0,
+                   },
         .visual_start = 0,
         .history =
             {
-                .snaps = {{{0}}},
-                .len = 0,
-                .index = 0,
-            },
+                   .snaps = {{{0}}},
+                   .len = 0,
+                   .index = 0,
+                   },
         .filename = argc > 1 ? argv[1] : NULL,
     };
 
