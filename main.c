@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PROGRAM_NAME "vimput"
+#define PROGRAM_VERSION "v1.0.0-alpha"
+#define PROGRAM_AUTHOR "darcy (https://github.com/dxrcy)"
+
 #define CTRL(key) ((key) - 0x60)
 #define K_ESCAPE (0x1b)
 #define K_LEFT (0x104)
@@ -760,19 +764,90 @@ void frame(State *const state, int *const key) {
     }
 }
 
-int main(const int argc, const char *const *const argv) {
-    if (argc > 2 || (argc > 1 && argv[1][0] == '-')) {
-        fprintf(
-            stderr,
-            "USAGE:\n"
-            "    vimput [FILENAME]\n"
-            "\n"
-            "ARGUMENTS:\n"
-            "    [FILENAME] (optional)\n"
-            "        Write the input to this file on <CR>\n"
-        );
-        return 1;
+#define cli_panic(...)                \
+    {                                 \
+        fprintf(stderr, __VA_ARGS__); \
+        exit(1);                      \
     }
+
+typedef struct Arguments {
+    const char *filename;
+} Arguments;
+
+enum ArgOption {
+    OPT_HELP,
+    OPT_FILENAME,
+};
+
+enum ArgOption parse_argument_option(const char *const arg) {
+    if (arg[0] != '-') {
+        cli_panic("Expected option, found `%s`.\n", arg);
+    }
+
+    switch (arg[1]) {
+        case 'h':
+            return OPT_HELP;
+        case 'o':
+            return OPT_FILENAME;
+        case '-': {
+            const char *const name = &arg[2];
+            if (!strcmp(name, "help")) {
+                return OPT_HELP;
+            }
+            if (!strcmp(name, "output")) {
+                return OPT_FILENAME;
+            }
+        };
+    }
+
+    cli_panic("Invalid option `%s`.\n", arg);
+}
+
+Arguments parse_arguments(const int argc, const char *const *const argv) {
+    Arguments arguments = {
+        .filename = NULL,
+    };
+    bool given_filename = false;
+
+    for (int i = 1; i < argc; ++i) {
+        switch (parse_argument_option(argv[i])) {
+            case OPT_HELP: {
+                fprintf(
+                    stderr,
+                    "" PROGRAM_NAME " " PROGRAM_VERSION "\n"
+                    "" PROGRAM_AUTHOR "\n"
+                    "\n"
+                    "USAGE:\n"
+                    "    " PROGRAM_NAME " [OPTION]...\n"
+                    "\n"
+                    "OPTIONS:\n"
+                    "    -h, --help\n"
+                    "        Output usage information.\n"
+                    "    -o, --output FILENAME\n"
+                    "        Write inputted text to this file on <CR>.\n"
+                );
+                exit(0);
+            }
+
+            case OPT_FILENAME: {
+                if (given_filename) {
+                    cli_panic("Cannot specify filename twice.\n");
+                }
+                ++i;
+                if (i >= argc) {
+                    cli_panic("Expected filename.\n");
+                }
+                arguments.filename = argv[i];
+                given_filename = true;
+            }; break;
+        }
+    }
+
+    return arguments;
+}
+
+int main(const int argc, const char *const *const argv) {
+    const Arguments arguments = parse_arguments(argc, argv);
 
     State state = {
         .mode = MODE_NORMAL,
@@ -790,7 +865,7 @@ int main(const int argc, const char *const *const argv) {
                 .len = 0,
                 .index = 0,
             },
-        .filename = argc > 1 ? argv[1] : NULL,
+        .filename = arguments.filename,
     };
 
     initscr();
