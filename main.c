@@ -14,6 +14,18 @@
 #define MAX_INPUT (200)
 #define MAX_HISTORY (100)
 
+const uint32_t CURSOR_LEFT = 5;
+const uint32_t CURSOR_RIGHT = 3;
+const uint32_t MAX_INPUT_WIDTH = 70;
+const uint32_t BOX_MARGIN = 2;
+
+const int PAIR_BOX = 1;
+const int PAIR_DETAILS = 2;
+const int PAIR_VISUAL = 3;
+const int ATTR_BOX = COLOR_PAIR(PAIR_BOX) | A_DIM;
+const int ATTR_DETAILS = COLOR_PAIR(PAIR_DETAILS) | A_DIM;
+const int ATTR_VISUAL = COLOR_PAIR(PAIR_VISUAL);
+
 enum VimMode {
     MODE_NORMAL,
     MODE_INSERT,
@@ -49,18 +61,6 @@ static struct {
     uint32_t y;
     uint32_t width;
 } input_box = {.x = 0, .y = 0, .width = 20};
-
-const uint32_t CURSOR_LEFT = 5;
-const uint32_t CURSOR_RIGHT = 1;
-const uint32_t MAX_INPUT_WIDTH = 70;
-const uint32_t BOX_MARGIN = 2;
-
-const int PAIR_BOX = 1;
-const int PAIR_DETAILS = 2;
-const int PAIR_VISUAL = 3;
-const int ATTR_BOX = COLOR_PAIR(PAIR_BOX) | A_DIM;
-const int ATTR_DETAILS = COLOR_PAIR(PAIR_DETAILS) | A_DIM;
-const int ATTR_VISUAL = COLOR_PAIR(PAIR_VISUAL);
 
 uint32_t subsat(const uint32_t lhs, const uint32_t rhs) {
     if (rhs >= lhs) {
@@ -352,7 +352,7 @@ void update_offset_left(Snap *const snap) {
 }
 
 void update_offset_right(Snap *const snap, const uint32_t width) {
-    if (snap->cursor + CURSOR_RIGHT > width) {
+    if (snap->cursor + CURSOR_RIGHT > snap->offset + width) {
         snap->offset = subsat(snap->cursor + CURSOR_RIGHT, width);
     }
 }
