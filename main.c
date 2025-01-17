@@ -6,7 +6,7 @@
 #include <string.h>
 
 #define PROGRAM_NAME "vimput"
-#define PROGRAM_VERSION "v1.0.0-alpha"
+#define PROGRAM_VERSION "v0.1.0"
 #define PROGRAM_AUTHOR "darcy (https://github.com/dxrcy)"
 
 #define CTRL(key) ((key) - 0x60)
@@ -31,6 +31,7 @@ const int PAIR_VISUAL = 3;
 const int ATTR_BOX = COLOR_PAIR(PAIR_BOX) | A_DIM;
 const int ATTR_DETAILS = COLOR_PAIR(PAIR_DETAILS) | A_DIM;
 const int ATTR_VISUAL = COLOR_PAIR(PAIR_VISUAL);
+const int ATTR_PLACEHOLDER = A_DIM;
 
 enum VimMode {
     MODE_NORMAL,
@@ -59,6 +60,7 @@ typedef struct State {
     Snap snap;
     uint32_t visual_start;
     History history;
+    const char *placeholder;
     const char *filename;
 } State;
 
@@ -398,17 +400,27 @@ void frame(State *const state, int *const key) {
     attroff(ATTR_BOX);
 
     move(input_box.y + 1, input_box.x + 1);
-    for (uint32_t i = 0; i < input_box.width; ++i) {
-        uint32_t index = i + state->snap.offset;
-        if (index < state->snap.input_len) {
+    if (state->snap.input_len > 0) {
+        for (uint32_t i = 0; i < input_box.width; ++i) {
+            uint32_t index = i + state->snap.offset;
+            if (index >= state->snap.input_len) {
+                break;
+            }
             if (state->mode == MODE_VISUAL && in_visual_select(state, index)) {
                 attron(ATTR_VISUAL);
             }
             printw("%c", state->snap.input[index]);
             attroff(ATTR_VISUAL);
-        } else {
-            printw(" ");
         }
+    } else if (state->placeholder != NULL) {
+        attron(ATTR_PLACEHOLDER);
+        for (uint32_t i = 0; i < input_box.width; ++i) {
+            if (state->placeholder[i] == '\0') {
+                break;
+            }
+            printw("%c", state->placeholder[i]);
+        }
+        attroff(ATTR_PLACEHOLDER);
     }
 
     move(max_rows - 1, 0);
@@ -773,14 +785,14 @@ void frame(State *const state, int *const key) {
 typedef struct Arguments {
     const char *filename;
     const char *value;
-    /* const char *placeholder; */
+    const char *placeholder;
 } Arguments;
 
 enum ArgOption {
     OPT_HELP,
     OPT_FILENAME,
     OPT_VALUE,
-    /* OPT_PLACEHOLDER, */
+    OPT_PLACEHOLDER,
 };
 
 enum ArgOption parse_argument_option(const char *const arg) {
@@ -795,6 +807,8 @@ enum ArgOption parse_argument_option(const char *const arg) {
             return OPT_FILENAME;
         case 'v':
             return OPT_VALUE;
+        case 'p':
+            return OPT_PLACEHOLDER;
         case '-': {
             const char *const name = &arg[2];
             if (!strcmp(name, "help")) {
@@ -804,11 +818,11 @@ enum ArgOption parse_argument_option(const char *const arg) {
                 return OPT_FILENAME;
             }
             if (!strcmp(name, "value")) {
-                return OPT_VALUE;
+                return OPT_PLACEHOLDER;
             }
-            /* if (!strcmp(name, "placeholder")) { */
-            /*     return OPT_PLACEHOLDER; */
-            /* } */
+            if (!strcmp(name, "placeholder")) {
+                return OPT_PLACEHOLDER;
+            }
         };
     }
 
@@ -819,9 +833,11 @@ Arguments parse_arguments(const int argc, const char *const *const argv) {
     Arguments arguments = {
         .filename = NULL,
         .value = NULL,
+        .placeholder = NULL,
     };
     bool given_filename = false;
     bool given_value = false;
+    bool given_placeholder = false;
 
     for (int i = 1; i < argc; ++i) {
         switch (parse_argument_option(argv[i])) {
@@ -841,6 +857,9 @@ Arguments parse_arguments(const int argc, const char *const *const argv) {
                     "        Write inputted text to this file on <CR>.\n"
                     "    -v, --value TEXT\n"
                     "        Set input to this string initially.\n"
+                    "    -p, --placeholder TEXT\n"
+                    "        Show this text as a placeholder when input is "
+                    "empty.\n"
                 );
                 exit(0);
             }
@@ -868,6 +887,18 @@ Arguments parse_arguments(const int argc, const char *const *const argv) {
                 arguments.value = argv[i];
                 given_value = true;
             }; break;
+
+            case OPT_PLACEHOLDER: {
+                if (given_placeholder) {
+                    cli_panic("Cannot specify placeholder text twice.\n");
+                }
+                ++i;
+                if (i >= argc) {
+                    cli_panic("Expected placeholder text.\n");
+                }
+                arguments.placeholder = argv[i];
+                given_placeholder = true;
+            }; break;
         }
     }
 
@@ -893,6 +924,7 @@ int main(const int argc, const char *const *const argv) {
                 .len = 0,
                 .index = 0,
             },
+        .placeholder = arguments.placeholder,
         .filename = arguments.filename,
     };
 
