@@ -14,8 +14,9 @@
 #define MAX_INPUT (200)
 #define MAX_HISTORY (100)
 
-const uint32_t CURSOR_LEFT = 5;
-const uint32_t CURSOR_RIGHT = 3;
+const uint32_t CURSOR_LEFT = 5;         // Min left padding
+const uint32_t CURSOR_RIGHT_FULL = 3;   // Min right padding
+const uint32_t CURSOR_RIGHT_EMPTY = 1;  // (^) when cursor is at end of input
 const uint32_t MAX_INPUT_WIDTH = 70;
 const uint32_t BOX_MARGIN = 2;
 
@@ -352,8 +353,11 @@ void update_offset_left(Snap *const snap) {
 }
 
 void update_offset_right(Snap *const snap, const uint32_t width) {
-    if (snap->cursor + CURSOR_RIGHT > snap->offset + width) {
-        snap->offset = subsat(snap->cursor + CURSOR_RIGHT, width);
+    const uint32_t cursor_right = (snap->cursor + 1 >= snap->input_len)
+                                      ? CURSOR_RIGHT_EMPTY
+                                      : CURSOR_RIGHT_FULL;
+    if (snap->cursor + cursor_right > snap->offset + width) {
+        snap->offset = subsat(snap->cursor + cursor_right, width);
     }
 }
 
