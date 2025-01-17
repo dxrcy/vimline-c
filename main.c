@@ -1,5 +1,6 @@
-#include <ctype.h>
 #include <ncurses.h>
+
+#include <ctype.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -203,7 +204,8 @@ int find_word_end(Snap *const snap, const bool full_word) {
     // On a sequence of spaces (>=1)
     // Look for start of next word, start from there instead
     while (snap->cursor + 1 < snap->input_len
-           && isspace(snap->input[snap->cursor])) {
+           && isspace(snap->input[snap->cursor]))
+    {
         ++snap->cursor;
     }
     // On non-space
@@ -216,7 +218,8 @@ int find_word_end(Snap *const snap, const bool full_word) {
         // OR first word after punctuation
         // (If distinguishing words and punctuation)
         if (isspace(snap->input[snap->cursor])
-            || (!full_word && isalnum(snap->input[snap->cursor]) != alnum)) {
+            || (!full_word && isalnum(snap->input[snap->cursor]) != alnum))
+        {
             return snap->cursor - 1;
         }
     }
@@ -247,7 +250,8 @@ int find_word_back(Snap *const snap, const bool full_word) {
         // Word starts at next index
         // (If distinguishing words and punctuation)
         if (isspace(snap->input[snap->cursor])
-            || (!full_word && isalnum(snap->input[snap->cursor]) != alnum)) {
+            || (!full_word && isalnum(snap->input[snap->cursor]) != alnum))
+        {
             return snap->cursor + 1;
         }
     }
@@ -281,7 +285,8 @@ void push_history(State *const state) {
     if (state->history.len > 0
         && equals_snap_input(
             &state->snap, &state->history.snaps[state->history.len - 1]
-        )) {
+        ))
+    {
         return;
     }
     if (state->history.len >= MAX_HISTORY) {
@@ -354,8 +359,8 @@ void update_offset_left(Snap *const snap) {
 
 void update_offset_right(Snap *const snap, const uint32_t width) {
     const uint32_t cursor_right = (snap->cursor + 1 >= snap->input_len)
-                                      ? CURSOR_RIGHT_EMPTY
-                                      : CURSOR_RIGHT_FULL;
+        ? CURSOR_RIGHT_EMPTY
+        : CURSOR_RIGHT_FULL;
     if (snap->cursor + cursor_right > snap->offset + width) {
         snap->offset = subsat(snap->cursor + cursor_right, width);
     }
@@ -474,7 +479,8 @@ void frame(State *const state, int *const key) {
                 case 'l':
                 case KEY_RIGHT:
                     if (state->snap.cursor < MAX_INPUT - 1
-                        && state->snap.cursor < state->snap.input_len - 1) {
+                        && state->snap.cursor < state->snap.input_len - 1)
+                    {
                         ++state->snap.cursor;
                         update_offset_right(&state->snap, input_box.width);
                     }
@@ -507,7 +513,8 @@ void frame(State *const state, int *const key) {
                 case '_':
                     for (state->snap.cursor = 0;
                          state->snap.cursor < state->snap.input_len;
-                         ++state->snap.cursor) {
+                         ++state->snap.cursor)
+                    {
                         if (!isspace(state->snap.input[state->snap.cursor])) {
                             break;
                         }
@@ -531,12 +538,14 @@ void frame(State *const state, int *const key) {
                     if (state->snap.input_len > 0) {
                         for (uint32_t i = state->snap.cursor + 1;
                              i < state->snap.input_len;
-                             ++i) {
+                             ++i)
+                        {
                             state->snap.input[i - 1] = state->snap.input[i];
                         }
                         --state->snap.input_len;
                         if (state->snap.cursor >= state->snap.input_len
-                            && state->snap.input_len > 0) {
+                            && state->snap.input_len > 0)
+                        {
                             state->snap.cursor = state->snap.input_len - 1;
                         }
                         update_offset_left(&state->snap);
@@ -576,7 +585,8 @@ void frame(State *const state, int *const key) {
                     break;
                 case K_RIGHT:
                     if (state->snap.cursor < MAX_INPUT
-                        && state->snap.cursor < state->snap.input_len) {
+                        && state->snap.cursor < state->snap.input_len)
+                    {
                         ++state->snap.cursor;
                         update_offset_right(&state->snap, input_box.width);
                     }
@@ -585,11 +595,13 @@ void frame(State *const state, int *const key) {
                     if (state->snap.cursor > 0 && state->snap.input_len > 0) {
                         for (uint32_t i = state->snap.cursor;
                              i < state->snap.input_len;
-                             ++i) {
+                             ++i)
+                        {
                             state->snap.input[i - 1] = state->snap.input[i];
                         }
                         for (uint32_t i = state->snap.input_len; i < MAX_INPUT;
-                             ++i) {
+                             ++i)
+                        {
                             state->snap.input[i] = '.';
                         }
                         --state->snap.input_len;
@@ -601,7 +613,8 @@ void frame(State *const state, int *const key) {
                     if (isprint(*key) && state->snap.input_len < MAX_INPUT) {
                         for (uint32_t i = state->snap.input_len;
                              i >= state->snap.cursor + 1;
-                             --i) {
+                             --i)
+                        {
                             state->snap.input[i] = state->snap.input[i - 1];
                         }
                         state->snap.input[state->snap.cursor] = *key;
@@ -646,7 +659,8 @@ void frame(State *const state, int *const key) {
                 case 'l':
                 case KEY_RIGHT:
                     if (state->snap.cursor < MAX_INPUT - 1
-                        && state->snap.cursor < state->snap.input_len - 1) {
+                        && state->snap.cursor < state->snap.input_len - 1)
+                    {
                         ++state->snap.cursor;
                         update_offset_right(&state->snap, input_box.width);
                     }
@@ -679,7 +693,8 @@ void frame(State *const state, int *const key) {
                 case '_':
                     for (state->snap.cursor = 0;
                          state->snap.cursor < state->snap.input_len;
-                         ++state->snap.cursor) {
+                         ++state->snap.cursor)
+                    {
                         if (!isspace(state->snap.input[state->snap.cursor])) {
                             break;
                         }
@@ -698,7 +713,8 @@ void frame(State *const state, int *const key) {
                 case 'd':
                 case 'x': {
                     for (uint32_t i = start; i <= state->snap.input_len - size;
-                         ++i) {
+                         ++i)
+                    {
                         uint32_t new = i + size;
                         if (new >= state->snap.input_len) {
                             break;
@@ -762,18 +778,18 @@ int main(const int argc, const char *const *const argv) {
         .mode = MODE_NORMAL,
         .snap =
             {
-                   .input = "abc def ghi jkl lmn opq rst uvw xyz",
-                   .input_len = 9 * 3 + 8,
-                   .cursor = 0,
-                   .offset = 0,
-                   },
+                .input = "abc def ghi jkl lmn opq rst uvw xyz",
+                .input_len = 9 * 3 + 8,
+                .cursor = 0,
+                .offset = 0,
+            },
         .visual_start = 0,
         .history =
             {
-                   .snaps = {{{0}}},
-                   .len = 0,
-                   .index = 0,
-                   },
+                .snaps = {{{0}}},
+                .len = 0,
+                .index = 0,
+            },
         .filename = argc > 1 ? argv[1] : NULL,
     };
 

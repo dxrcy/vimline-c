@@ -8,14 +8,18 @@ ColumnLimit: 80
 LineEnding: LF
 
 AlignAfterOpenBracket: BlockIndent
-AlignArrayOfStructures: Left
+AlignArrayOfStructures: None
 AlignEscapedNewlines: Left
+AlignOperands: DontAlign
 AlignTrailingComments: Always
 
 AlignConsecutiveAssignments: None
 AlignConsecutiveBitFields: Consecutive
 AlignConsecutiveDeclarations: None
 AlignConsecutiveMacros: None
+
+AllowAllArgumentsOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
 
 AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
@@ -34,15 +38,34 @@ BinPackParameters: false
 PackConstructorInitializers: Never
 
 BreakBeforeBinaryOperators: NonAssignment
-BreakBeforeBraces: Attach
 BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: BeforeColon
 BreakFunctionDefinitionParameters: false
 BreakTemplateDeclarations: Yes
 
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterCaseLabel: false
+  AfterClass: false
+  AfterControlStatement: MultiLine
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  BeforeCatch: false
+  BeforeElse: false
+  BeforeLambdaBody: false
+  BeforeWhile: false
+  IndentBraces: false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+
 CompactNamespaces: false
 FixNamespaceComments: true
-NamespaceIndentation: All
+NamespaceIndentation: Inner
 
 EmptyLineAfterAccessModifier: Never
 EmptyLineBeforeAccessModifier: Leave
@@ -50,6 +73,30 @@ EmptyLineBeforeAccessModifier: Leave
 IncludeBlocks: Regroup
 SortIncludes: CaseSensitive
 SortUsingDeclarations: Lexicographic
+IncludeCategories:
+  # C standard
+  - Regex:          '^<(assert|limits|signal|stdlib|ctype|locale|stdarg|string|errno|math|stddef|time|float|setjmp|stdio|iso646|wchar|wctype|complex|inttypes|stdint|tgmath|fenv|stdbool|stdalign|stdatomic|stdnoreturn|threads|uchar|stdbit|stdckdint|stdalign|stdbool|stdnoreturn)\.h>$'
+    Priority:       40
+    SortPriority:   41
+  # Posix
+  - Regex:          '^<(aio|libgen|spawn|sys/time|arpa/inet|limits|stdarg|sys/times|assert|locale|stdbool|sys/types|complex|math|stddef|sys/uio|cpio|monetary|stdint|sys/un|ctype|mqueue|stdio|sys/utsname|dirent|ndbm|stdlib|sys/wait|dlfcn|net/if|string|syslog|errno|netdb|strings|tar|fcntl|netinet/in|stropts|termios|fenv|netinet/tcp|sys/ipc|tgmath|float|nl_types|sys/mman|time|fmtmsg|poll|sys/msg|trace|fnmatch|pthread|sys/resource|ulimit|ftw|pwd|sys/select|unistd|glob|regex|sys/sem|utime|grp|sched|sys/shm|utmpx|iconv|search|sys/socket|wchar|inttypes|semaphore|sys/stat|wctype|iso646|setjmp|sys/statvfs|wordexp|langinfo|signal)\.h>$'
+    Priority:       20
+  # C++ standard
+  - Regex:          '^<algorithm|format|new|stdexcept|any|forward_list|numbers|stdfloat|array|fstream|numeric|stop_token|atomic|functional|optional|streambuf|barrier|future|ostream|string|bit|generator|print|string_view|bitset|initializer_list|queue|strstream|charconv|iomanip|random|syncstream|chrono|ios|ranges|system_error|codecvt|iosfwd|ratio|thread|compare|iostream|regex|tuple|complex|istream|scoped_allocator|type_traits|concepts|iterator|semaphore|typeindex|condition_variable|latch|set|typeinfo|coroutine|limits|shared_mutex|unordered_map|deque|list|source_location|unordered_set|exception|locale|span|utility|execution|map|spanstream|valarray|expected|mdspan|sstream|variant|filesystem|memory|stack|vector|flat_map|memory_resource|stacktrace|version|flat_set|mutex>$'
+    Priority:       30
+  # C++ standard C
+  - Regex:          '^<cassert|cfenv|climits|csetjmp|cstddef|cstdlib|cuchar|cctype|cfloat|clocale|csignal|cstdint|cstring|cwchar|cerrno|cinttypes|cmath|cstdarg|cstdio|ctime|cwctype>$'
+    Priority:       40
+  # Other system C
+  - Regex:          '^<[^>]+\.h>$'
+    Priority:       10
+    SortPriority:   11
+  # Other system C++
+  - Regex:          '^<[^>]+>$'
+    Priority:       10
+  # Local/private
+  - Regex:          '"[^"]+"'
+    Priority:       1
 
 IndentAccessModifiers: false
 IndentCaseBlocks: false
@@ -125,5 +172,6 @@ SpacesInLineCommentPrefix:
 # BreakBinaryOperations: Never
 # RemoveEmptyLinesInUnwrappedLines: true
 # WrapNamespaceBodyWithEmptyLines: Always
+
 
 
