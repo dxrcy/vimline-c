@@ -772,11 +772,15 @@ void frame(State *const state, int *const key) {
 
 typedef struct Arguments {
     const char *filename;
+    const char *value;
+    /* const char *placeholder; */
 } Arguments;
 
 enum ArgOption {
     OPT_HELP,
     OPT_FILENAME,
+    OPT_VALUE,
+    /* OPT_PLACEHOLDER, */
 };
 
 enum ArgOption parse_argument_option(const char *const arg) {
@@ -789,6 +793,8 @@ enum ArgOption parse_argument_option(const char *const arg) {
             return OPT_HELP;
         case 'o':
             return OPT_FILENAME;
+        case 'v':
+            return OPT_VALUE;
         case '-': {
             const char *const name = &arg[2];
             if (!strcmp(name, "help")) {
@@ -797,6 +803,12 @@ enum ArgOption parse_argument_option(const char *const arg) {
             if (!strcmp(name, "output")) {
                 return OPT_FILENAME;
             }
+            if (!strcmp(name, "value")) {
+                return OPT_VALUE;
+            }
+            /* if (!strcmp(name, "placeholder")) { */
+            /*     return OPT_PLACEHOLDER; */
+            /* } */
         };
     }
 
@@ -806,8 +818,10 @@ enum ArgOption parse_argument_option(const char *const arg) {
 Arguments parse_arguments(const int argc, const char *const *const argv) {
     Arguments arguments = {
         .filename = NULL,
+        .value = NULL,
     };
     bool given_filename = false;
+    bool given_value = false;
 
     for (int i = 1; i < argc; ++i) {
         switch (parse_argument_option(argv[i])) {
@@ -825,6 +839,8 @@ Arguments parse_arguments(const int argc, const char *const *const argv) {
                     "        Output usage information.\n"
                     "    -o, --output FILENAME\n"
                     "        Write inputted text to this file on <CR>.\n"
+                    "    -v, --value TEXT\n"
+                    "        Set input to this string initially.\n"
                 );
                 exit(0);
             }
@@ -840,6 +856,18 @@ Arguments parse_arguments(const int argc, const char *const *const argv) {
                 arguments.filename = argv[i];
                 given_filename = true;
             }; break;
+
+            case OPT_VALUE: {
+                if (given_value) {
+                    cli_panic("Cannot specify initial value twice.\n");
+                }
+                ++i;
+                if (i >= argc) {
+                    cli_panic("Expected initial value.\n");
+                }
+                arguments.value = argv[i];
+                given_value = true;
+            }; break;
         }
     }
 
@@ -853,8 +881,8 @@ int main(const int argc, const char *const *const argv) {
         .mode = MODE_NORMAL,
         .snap =
             {
-                .input = "abc def ghi jkl lmn opq rst uvw xyz",
-                .input_len = 9 * 3 + 8,
+                .input = "",
+                .input_len = 0,
                 .cursor = 0,
                 .offset = 0,
             },
@@ -867,6 +895,24 @@ int main(const int argc, const char *const *const argv) {
             },
         .filename = arguments.filename,
     };
+
+    if (arguments.value != NULL) {
+        // Copy string to non-null terminated string, and find length
+        size_t i = 0;
+        for (; i < MAX_INPUT; ++i) {
+            const char ch = arguments.value[i];
+            if (ch == '\0') {
+                break;
+            }
+            state.snap.input[i] = ch;
+        }
+        state.snap.input_len = i;
+        state.snap.cursor = subsat(i, 1);
+    }
+
+    push_history(&state);
+
+    // TODO(fix): Push snap on insert
 
     initscr();
     noecho();              // Disable echoing
@@ -883,7 +929,9 @@ int main(const int argc, const char *const *const argv) {
     init_pair(PAIR_DETAILS, COLOR_WHITE, -1);
     init_pair(PAIR_VISUAL, -1, COLOR_BLUE);
 
-    push_history(&state);
+    update_input_box(getmaxy(stdscr), getmaxx(stdscr));
+    state.snap.offset =
+        subsat(state.snap.cursor + CURSOR_RIGHT_EMPTY + 1, input_box.width);
 
     int key = 0;
     while (TRUE) {
