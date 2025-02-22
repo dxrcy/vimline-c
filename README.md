@@ -1,4 +1,4 @@
-# Vimput
+# Vimline C
 
 Simple single-line text input with vim keybinds in ncurses.
 

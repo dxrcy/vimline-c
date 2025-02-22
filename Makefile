@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -Wpedantic -lncurses
 
-TARGET = vimput
+TARGET = vimline
 PREFIX = /usr/local
 BINDIR = $(PREFIX)/bin
 

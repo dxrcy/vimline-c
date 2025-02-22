@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PROGRAM_NAME "vimput"
+#define PROGRAM_NAME "vimline"
 #define PROGRAM_VERSION "v0.1.0"
 #define PROGRAM_AUTHOR "darcy (https://github.com/dxrcy)"
 
